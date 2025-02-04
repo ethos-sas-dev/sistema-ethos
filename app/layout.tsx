@@ -8,7 +8,7 @@ const instrumentSans = Instrument_Sans({
 })
 
 export const metadata = {
-  title: 'Sistema Ethos',
+  title: 'Ethos S.A.S.',
   description: 'Sistema de gestión de propiedades',
   icons: {
     icon: '/ethos-logo.ico',

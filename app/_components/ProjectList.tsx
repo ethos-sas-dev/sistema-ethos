@@ -1,7 +1,7 @@
 export default function ProjectList() {
   return (
     <section className="py-16 px-8">
-      <h2 className="font-instrumentSans font-bold text-4xl text-center mb-12">Nuestros Proyectos</h2>
+      <h2 className="font-instrumentSans font-bold text-5xl text-center mb-16">Nuestros Proyectos</h2>
       
       {/* Mobile layout (1x4) */}
       <div className="container mx-auto sm:hidden flex flex-col space-y-6">

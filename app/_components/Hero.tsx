@@ -7,10 +7,10 @@ export default function Hero() {
       </div>
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white px-4">
         <h1 className="text-5xl font-bold text-center max-w-[611px] leading-tight mb-8">
-          Descubre proyectos en venta y alquiler.
+          ¡Descubre proyectos en venta y alquiler!
         </h1>
         <p className="text-xl text-center max-w-[350px] mb-8">
-          Somos una empresa de manejo de propiedades.
+          Ethos S.A.S. es una empresa que se encarga de manejar propiedades.
         </p>
         <button className="bg-[#008A4B] hover:bg-[#006837] transition-colors text-white font-semibold py-3 px-6 rounded-lg">
           Ver proyectos
