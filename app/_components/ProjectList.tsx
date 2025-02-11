@@ -1,7 +1,9 @@
+import { motion } from "framer-motion";
+
 export default function ProjectList() {
   return (
     <section className="py-16 px-8">
-      <h2 className="font-instrumentSans font-bold text-5xl text-center mb-16">Nuestros Proyectos</h2>
+      <h2 className="font-dmSans font-bold text-5xl text-center mb-16">Nuestros Proyectos</h2>
       
       {/* Mobile layout (1x4) */}
       <div className="container mx-auto sm:hidden flex flex-col space-y-6">
@@ -54,120 +56,109 @@ export default function ProjectList() {
       {/* Large screen layout (complex with smaller text) */}
       <div className="hidden lg:grid xl:hidden container mx-auto grid-cols-12 gap-6">
         {/* Left column - Propiedades */}
-        <div className="col-span-4 relative h-[488px]">
-          <div className="relative w-full h-full">
-            <img
-              src="/proyectos-propiedades.png"
-              alt="Propiedades"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <h3 className="absolute top-4 left-6 text-white font-instrumentSans font-bold text-2xl">Propiedades</h3>
-          </div>
+        <div className="col-span-4">
+          <ProjectCard 
+            image="/proyectos-propiedades.png"
+            title="Propiedades"
+            className="h-[488px]"
+          />
         </div>
 
         {/* Middle column - Residenciales */}
-        <div className="col-span-3 relative h-[488px]">
-          <div className="relative w-full h-full">
-            <img src="/proyectos-residenciales.png" alt="Residenciales" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <h3 className="absolute bottom-6 left-4 text-white font-instrumentSans font-bold text-2xl">
-              Residenciales
-            </h3>
-          </div>
+        <div className="col-span-3">
+          <ProjectCard 
+            image="/proyectos-residenciales.png"
+            title="Residenciales"
+            className="h-[488px]"
+          />
         </div>
 
         {/* Right column - Stacked images */}
         <div className="col-span-5 space-y-6">
-          <div className="relative h-[198px]">
-            <div className="relative w-full h-full">
-              <img src="/proyectos-centros-operaciones.png" alt="Centros de operaciones" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <h3 className="absolute top-12 left-6 text-white font-instrumentSans font-bold text-2xl leading-tight">
-                Centros de
-                <br />
-                operaciones
-              </h3>
-            </div>
-          </div>
-          <div className="relative h-[270px]">
-            <div className="relative w-full h-full">
-              <img src="/proyectos-plazas-comerciales.png" alt="Plazas comerciales" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <h3 className="absolute bottom-6 left-6 text-white font-instrumentSans font-bold text-2xl">
-                Plazas comerciales
-              </h3>
-            </div>
-          </div>
+          <ProjectCard 
+            image="/proyectos-centros-operaciones.png"
+            title="Centros de operaciones"
+            className="h-[198px]"
+          />
+          <ProjectCard 
+            image="/proyectos-plazas-comerciales.png"
+            title="Plazas comerciales"
+            className="h-[270px]"
+          />
         </div>
       </div>
 
-      {/* XL screen layout (original size) */}
+      {/* XL screen layout */}
       <div className="hidden xl:grid container mx-auto grid-cols-12 gap-6">
         {/* Left column - Propiedades */}
-        <div className="col-span-4 relative h-[488px]">
-          <div className="relative w-full h-full">
-            <img
-              src="/proyectos-propiedades.png"
-              alt="Propiedades"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <h3 className="absolute top-4 left-6 text-white font-instrumentSans font-bold text-[35px]">Propiedades</h3>
-          </div>
+        <div className="col-span-4">
+          <ProjectCard 
+            image="/proyectos-propiedades.png"
+            title="Propiedades"
+            className="h-[488px]"
+          />
         </div>
 
         {/* Middle column - Residenciales */}
-        <div className="col-span-3 relative h-[488px]">
-          <div className="relative w-full h-full">
-            <img src="/proyectos-residenciales.png" alt="Residenciales" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <h3 className="absolute bottom-6 left-4 text-white font-instrumentSans font-bold text-[35px]">
-              Residenciales
-            </h3>
-          </div>
+        <div className="col-span-3">
+          <ProjectCard 
+            image="/proyectos-residenciales.png"
+            title="Residenciales"
+            className="h-[488px]"
+          />
         </div>
 
         {/* Right column - Stacked images */}
         <div className="col-span-5 space-y-6">
-          <div className="relative h-[198px]">
-            <div className="relative w-full h-full">
-              <img src="/proyectos-centros-operaciones.png" alt="Centros de operaciones" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <h3 className="absolute top-12 left-6 text-white font-instrumentSans font-bold text-[35px] leading-tight">
-                Centros de
-                <br />
-                operaciones
-              </h3>
-            </div>
-          </div>
-          <div className="relative h-[270px]">
-            <div className="relative w-full h-full">
-              <img src="/proyectos-plazas-comerciales.png" alt="Plazas comerciales" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <h3 className="absolute bottom-6 left-6 text-white font-instrumentSans font-bold text-[35px]">
-                Plazas comerciales
-              </h3>
-            </div>
-          </div>
+          <ProjectCard 
+            image="/proyectos-centros-operaciones.png"
+            title="Centros de operaciones"
+            className="h-[198px]"
+          />
+          <ProjectCard 
+            image="/proyectos-plazas-comerciales.png"
+            title="Plazas comerciales"
+            className="h-[270px]"
+          />
         </div>
       </div>
     </section>
   )
 }
 
-// Componente reutilizable para las cards
+// Componente reutilizable para las cards con efectos hover
 function ProjectCard({ image, title, className = "" }: { image: string, title: string, className?: string }) {
   return (
-    <div className={`relative w-full ${className}`}>
+    <motion.div 
+      className={`relative w-full overflow-hidden group ${className}`}
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="relative w-full h-full">
-        <img src={image} alt={title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20"></div>
-        <h3 className="absolute bottom-6 left-6 text-white font-instrumentSans font-bold text-2xl lg:text-[28px] xl:text-[35px]">
-          {title}
-        </h3>
+        <div className="absolute inset-0 w-full h-full">
+          <motion.img 
+            src={image} 
+            alt={title} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-90 transition-opacity duration-300"></div>
+        <div className="absolute inset-0 flex flex-col justify-end p-6">
+          <motion.div
+            initial={{ y: 0 }}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3 className="text-white font-dmSans font-bold text-2xl lg:text-[28px] xl:text-[35px] transform group-hover:scale-105 transition-transform duration-300">
+              {title}
+            </h3>
+            <p className="text-white/0 group-hover:text-white/90 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 text-sm mt-2">
+              Haz clic para explorar más sobre {title.toLowerCase()}
+            </p>
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

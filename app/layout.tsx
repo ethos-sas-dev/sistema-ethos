@@ -1,18 +1,16 @@
 import './globals.css'
-import { Instrument_Sans } from 'next/font/google'
+import { DM_Sans } from 'next/font/google'
+import { AuthProvider } from './_lib/auth/AuthContext'
 
-const instrumentSans = Instrument_Sans({
+const dmSans = DM_Sans({ 
   subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-instrument-sans',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-dm-sans',
 })
 
 export const metadata = {
-  title: 'Ethos S.A.S.',
-  description: 'Sistema de gestión de propiedades',
-  icons: {
-    icon: '/ethos-logo.ico',
-  },
+  title: 'Sistema Ethos',
+  description: 'Sistema de gestión inmobiliaria',
 }
 
 export default function RootLayout({
@@ -21,9 +19,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className={instrumentSans.variable}>
-      <body className="min-h-screen bg-background font-instrumentSans antialiased">
-        {children}
+    <html lang="es" className={dmSans.variable}>
+      <body className={`${dmSans.className} antialiased`}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
