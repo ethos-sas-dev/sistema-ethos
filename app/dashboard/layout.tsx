@@ -126,9 +126,14 @@ const menuItems = {
       href: "/dashboard/mis-propiedades"
     },
     {
+      label: "Directorio",
+      icon: BuildingStorefrontIcon,
+      href: "/dashboard/directorio"
+    },
+    {
       label: "Mis Documentos",
       icon: DocumentTextIcon,
-      href: "/dashboard/mis-documentos"
+      href: "/dashboard/documentos"
     },
     {
       label: "Solicitudes",
@@ -146,6 +151,11 @@ const menuItems = {
       label: "Mi Alquiler",
       icon: BuildingOffice2Icon,
       href: "/dashboard/mi-alquiler"
+    },
+    {
+      label: "Directorio",
+      icon: BuildingStorefrontIcon,
+      href: "/dashboard/directorio"
     },
     {
       label: "Mis Documentos",

@@ -40,13 +40,13 @@ const quickActions = {
       href: "/dashboard/proyectos/nuevo",
       icon: BuildingOffice2Icon
     },
-    {
-      title: "Nueva Solicitud",
-      description: "Crea una nueva solicitud de servicio",
-      actionLabel: "Crear solicitud",
-      href: "/dashboard/solicitudes/nuevo",
-      icon: ClipboardDocumentListIcon
-    },
+    // {
+    //   title: "Nueva Solicitud",
+    //   description: "Crea una nueva solicitud de servicio",
+    //   actionLabel: "Crear solicitud",
+    //   href: "/dashboard/solicitudes/nuevo",
+    //   icon: ClipboardDocumentListIcon
+    // },
     {
       title: "Ver Reportes",
       description: "Accede a los reportes y estadísticas",

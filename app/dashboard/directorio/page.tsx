@@ -1,204 +1,301 @@
-'use client'
+"use client"
 
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { 
-  MagnifyingGlassIcon, 
-  FunnelIcon,
-  BuildingOffice2Icon,
-  MapPinIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  GlobeAltIcon,
-  ChevronRightIcon,
-  XMarkIcon,
-  PlusIcon
+  ArrowDownTrayIcon, 
+  TableCellsIcon, 
+  Squares2X2Icon,
+  MapPinIcon
 } from "@heroicons/react/24/outline"
-import { Button } from "../../_components/ui/button"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useAuth } from '../../_lib/auth/AuthContext'
-import { useState } from 'react'
+import { useAuth } from "../../_lib/auth/AuthContext"
+import { PropertyDirectoryFilters } from "../_components/PropertyDirectoryFilters"
 
-// Datos de ejemplo - esto vendría de tu API
-const allProperties = [
+// Datos de ejemplo
+const mockProperties = [
   {
-    id: 1,
-    name: "Bodega 01",
-    lot: "Lote 1",
-    type: "Industrial",
-    location: "Zona Norte, Ciudad",
-    area: "450 m²",
+    id: "1",
     businessUnit: "U1",
-    projectId: "P1",
-    projectName: "Almax 3",
-    assignedAdmin: "Juan Pérez",
-    status: "En venta",
+    project: "Almax 1",
+    lote: "1",
+    name: "Bodega 10",
+    type: "bodega",
+    deliveryStatus: "Entregado",
+    rentalStatus: "Alquilado",
+    occupantType: "Arrendatario",
+    occupantName: "Importadora XYZ",
+    occupantId: "0992345678001",
+    occupantEmail: "contacto@xyz.com",
+    occupantPhone: "(04) 234-5678",
+    businessActivity: "Importación y distribución de repuestos",
+    ownerName: "Juan Pérez",
+    ownerId: "0912345678",
+    ownerEmail: "juan@email.com",
+    ownerPhone: "(09) 987-6543",
     image: "/bodega.png"
   },
   {
-    id: 2,
-    name: "Bodega 02",
-    lot: "Lote 2",
-    type: "Industrial",
-    location: "Zona Sur, Ciudad",
-    area: "520 m²",
+    id: "2",
     businessUnit: "U2",
-    projectId: "P2",
-    projectName: "Centro Empresarial Sur",
-    assignedAdmin: "Juan Pérez",
-    status: "En renta",
-    image: "/bodega.png"
-  },
-  {
-    id: 3,
-    name: "Bodega 03",
-    lot: "Lote 3",
-    type: "Industrial",
-    location: "Zona Este, Ciudad",
-    area: "380 m²",
-    businessUnit: "U3",
-    projectId: "P3",
-    projectName: "Plaza Central",
-    assignedAdmin: "Carlos Ruiz",
-    status: "Disponible",
+    project: "Almax 2",
+    lote: "3",
+    name: "Ofibodega 23",
+    type: "ofibodega",
+    deliveryStatus: "Entregado",
+    rentalStatus: "En uso",
+    occupantType: "Propietario",
+    occupantName: "María González",
+    occupantId: "0987654321001",
+    occupantEmail: "maria@email.com",
+    occupantPhone: "(04) 567-8901",
+    businessActivity: "Oficinas administrativas y almacén",
+    ownerName: "María González",
+    ownerId: "0987654321",
+    ownerEmail: "maria@email.com",
+    ownerPhone: "(09) 876-5432",
     image: "/bodega.png"
   }
 ]
 
-export default function DirectoryPage() {
+export default function DirectorioPage() {
   const { role } = useAuth()
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedUnit, setSelectedUnit] = useState("Todas")
-  const [selectedStatus, setSelectedStatus] = useState("Todos")
+  const [filteredProperties, setFilteredProperties] = useState(mockProperties)
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table")
 
-  // El jefe operativo no puede ver esta página
-  if (role === 'jefeOperativo') {
-    router.push('/dashboard')
-    return null
-  }
+  // Simular el proyecto del usuario (en producción vendría del contexto de autenticación)
+  const userProject = role === "propietario" || role === "arrendatario" ? "Almax 1" : null
 
-  // Filtrar propiedades según el rol
-  const getFilteredProperties = () => {
-    let properties = allProperties
-
-    // Si es admin, solo ve las propiedades de proyectos asignados a él
-    if (role === 'administrador') {
-      properties = properties.filter(prop => prop.assignedAdmin === "Juan Pérez") // Ejemplo, esto vendría de la sesión del usuario
-    }
-    
-    // Si es propietario o arrendatario, solo ve las propiedades de su proyecto
-    if (role === 'propietario' || role === 'arrendatario') {
-      properties = properties.filter(prop => prop.projectId === "P1") // Ejemplo, esto vendría de la sesión del usuario
+  useEffect(() => {
+    // Verificar acceso
+    const allowedRoles = ["jefeOperativo", "administrador", "directorio", "propietario", "arrendatario"]
+    if (!allowedRoles.includes(role)) {
+      router.push("/dashboard")
     }
 
-    // Aplicar filtros de búsqueda
-    return properties.filter(prop => {
-      const matchesSearch = 
-        prop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prop.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prop.projectName.toLowerCase().includes(searchQuery.toLowerCase())
+    // Filtrar propiedades por proyecto si es propietario o arrendatario
+    if (userProject) {
+      setFilteredProperties(mockProperties.filter(p => p.project === userProject))
+    }
+  }, [role, router, userProject])
 
-      const matchesUnit = selectedUnit === "Todas" || prop.businessUnit === selectedUnit
-      const matchesStatus = selectedStatus === "Todos" || prop.status === selectedStatus
+  if (!["jefeOperativo", "administrador", "directorio", "propietario", "arrendatario"].includes(role)) return null
 
-      return matchesSearch && matchesUnit && matchesStatus
-    })
+  const handleFilterChange = (filters: any) => {
+    let filtered = userProject ? 
+      mockProperties.filter(p => p.project === userProject) : 
+      mockProperties
+
+    if (filters.businessUnit) {
+      filtered = filtered.filter(p => p.businessUnit === filters.businessUnit)
+    }
+    if (filters.project && !userProject) { // Solo aplicar filtro de proyecto si no es propietario/arrendatario
+      filtered = filtered.filter(p => p.project === filters.project)
+    }
+    if (filters.deliveryStatus) {
+      filtered = filtered.filter(p => p.deliveryStatus === filters.deliveryStatus)
+    }
+    if (filters.rentalStatus) {
+      filtered = filtered.filter(p => p.rentalStatus === filters.rentalStatus)
+    }
+    if (filters.occupantType) {
+      filtered = filtered.filter(p => p.occupantType === filters.occupantType)
+    }
+
+    setFilteredProperties(filtered)
   }
 
-  const filteredProperties = getFilteredProperties()
+  const handleExportCSV = () => {
+    // Preparar los datos según el rol
+    const getData = (property: any) => {
+      const baseData = {
+        "Unidad de negocio": property.businessUnit,
+        "Proyecto": property.project,
+        "Lote": property.lote,
+        "Bodega": property.name,
+        "Estado de entrega": property.deliveryStatus,
+        "Estado de arrendamiento": property.rentalStatus,
+        "Actividad del negocio": property.businessActivity,
+      }
+
+      const data = role === "jefeOperativo" ? {
+        ...baseData,
+        "Nombre del ocupante": property.occupantName,
+        "RUC/CI ocupante": property.occupantId,
+        "Correo del propietario": property.ownerEmail,
+        "Teléfono del propietario": property.ownerPhone,
+      } : {
+        ...baseData,
+        "Tipo de ocupante": property.occupantType,
+        "Nombre": property.occupantName,
+        "RUC/CI": property.occupantId,
+        "Correo": property.occupantEmail,
+        "Teléfono": property.occupantPhone,
+      }
+
+      return data as Record<string, string>
+    }
+
+    const csvData = filteredProperties.map(getData)
+    const headers = Object.keys(csvData[0])
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => headers.map(header => `"${row[header]}"`).join(","))
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", "directorio-propiedades-ethos.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Determinar si el usuario puede exportar
+  const canExport = ["jefeOperativo", "administrador", "directorio"].includes(role)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-[1400px] mx-auto"
-    >
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div>
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-gray-900">Directorio de Propiedades</h1>
-            <div className="inline-flex items-center gap-1.5 bg-[#008A4B]/10 text-[#008A4B] text-sm font-medium px-2.5 py-1 rounded-lg">
-              {filteredProperties.length} propiedades
-            </div>
-          </div>
-          <p className="text-gray-500 mt-1">
-            Explora todas las propiedades disponibles
-          </p>
-        </div>
-        {(role === 'administrador' || role === 'directorio') && (
-          <Button 
-            className="bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2"
-            onClick={() => router.push('/dashboard/directorio/propiedades/nueva')}
-          >
-            <PlusIcon className="w-4 h-4" />
-            Nueva Propiedad
-          </Button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium text-gray-700">Filtros de búsqueda</h2>
-          {(searchQuery || selectedUnit !== "Todas" || selectedStatus !== "Todos") && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSearchQuery("")
-                setSelectedUnit("Todas")
-                setSelectedStatus("Todos")
-              }}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <XMarkIcon className="w-4 h-4 mr-2" />
-              Limpiar filtros
-            </Button>
+          <h1 className="text-2xl font-semibold text-gray-900">Directorio de Propiedades</h1>
+          {userProject && (
+            <p className="text-sm text-gray-500 mt-1">
+              Mostrando propiedades de {userProject}
+            </p>
           )}
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nombre o ubicación..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008A4B]/20 focus:border-[#008A4B]"
-            />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "table" 
+                  ? "bg-white text-emerald-600 shadow-sm" 
+                  : "text-gray-600 hover:text-emerald-600"
+              }`}
+            >
+              <TableCellsIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "cards" 
+                  ? "bg-white text-emerald-600 shadow-sm" 
+                  : "text-gray-600 hover:text-emerald-600"
+              }`}
+            >
+              <Squares2X2Icon className="w-5 h-5" />
+            </button>
           </div>
-          
-          <select
-            value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008A4B]/20 focus:border-[#008A4B] bg-white"
-          >
-            <option value="Todas">Todas las unidades</option>
-            <option value="U1">Unidad 1</option>
-            <option value="U2">Unidad 2</option>
-            <option value="U3">Unidad 3</option>
-          </select>
-          
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008A4B]/20 focus:border-[#008A4B] bg-white"
-          >
-            <option value="Todos">Todos los estados</option>
-            <option value="En venta">En venta</option>
-            <option value="En renta">En renta</option>
-            <option value="Disponible">Disponible</option>
-          </select>
+          {canExport && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleExportCSV}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors"
+            >
+              <ArrowDownTrayIcon className="w-5 h-5" />
+              Exportar
+            </motion.button>
+          )}
         </div>
       </div>
 
-      {/* Properties Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProperties.map((property) => (
-          <Link href={`/dashboard/directorio/${property.id}`} key={property.id}>
+      <PropertyDirectoryFilters 
+        role={role as "jefeOperativo" | "administrador" | "directorio"} 
+        onFilterChange={handleFilterChange} 
+      />
+
+      {viewMode === "table" ? (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {role === "directorio" && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Unidad de negocio
+                    </th>
+                  )}
+                  {(role === "directorio" || role === "administrador") && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Proyecto
+                    </th>
+                  )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Lote
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bodega
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ocupante
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    RUC/CI
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contacto
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredProperties.map((property) => (
+                  <tr key={property.id} className="hover:bg-gray-50">
+                    {role === "directorio" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {property.businessUnit}
+                      </td>
+                    )}
+                    {(role === "directorio" || role === "administrador") && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {property.project}
+                      </td>
+                    )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {property.lote}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {property.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium
+                        ${property.rentalStatus === 'Disponible' ? 'bg-green-100 text-green-800' :
+                          property.rentalStatus === 'Alquilado' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'}`}>
+                        {property.rentalStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {property.occupantName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {property.occupantId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="space-y-1">
+                        <div>{property.occupantEmail}</div>
+                        <div>{property.occupantPhone}</div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProperties.map((property) => (
             <motion.div
+              key={property.id}
               className="bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-shadow group"
               whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
@@ -206,11 +303,11 @@ export default function DirectoryPage() {
               <div className="relative h-48">
                 <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                   <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm">
-                    {property.area}
+                    Lote {property.lote}
                   </div>
-                  {(role === 'administrador' || role === 'directorio') && (
-                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm text-[#008A4B]">
-                      Unidad {property.businessUnit.slice(1)}
+                  {(role === "administrador" || role === "directorio") && (
+                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm text-emerald-600">
+                      {property.businessUnit}
                     </div>
                   )}
                 </div>
@@ -223,31 +320,35 @@ export default function DirectoryPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-900 group-hover:text-[#008A4B] transition-colors">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
                       {property.name}
-                      <span className="text-gray-500 font-normal"> · {property.lot}</span>
+                      <span className="text-gray-500 font-normal ml-2">· {property.project}</span>
                     </h3>
-                    <p className="text-sm text-gray-500">{property.projectName}</p>
+                    <p className="text-sm text-gray-500">{property.businessActivity}</p>
                   </div>
-                  <span className={`px-3 py-1.5 rounded-lg text-xs font-medium
-                    ${property.status === 'Disponible' ? 'bg-green-100 text-green-800' : 
-                      property.status === 'En renta' ? 'bg-blue-100 text-blue-800' : 
-                      'bg-yellow-100 text-yellow-800'}`}
-                  >
-                    {property.status}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium
+                    ${property.rentalStatus === 'Disponible' ? 'bg-green-100 text-green-800' :
+                      property.rentalStatus === 'Alquilado' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'}`}>
+                    {property.rentalStatus}
                   </span>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 space-y-2">
                   <div className="flex items-center gap-2 text-gray-600">
                     <MapPinIcon className="w-4 h-4" />
-                    <span className="text-sm">{property.location}</span>
+                    <span className="text-sm">{property.occupantName}</span>
                   </div>
+                  {property.occupantPhone && (
+                    <div className="text-sm text-gray-500">
+                      {property.occupantPhone}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
-          </Link>
-        ))}
-      </div>
-    </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 } 
