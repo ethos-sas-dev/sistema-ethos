@@ -4,6 +4,7 @@ import { SummaryCards } from "./_components/SummaryCards"
 import { RecentRequests } from "./_components/RecentRequests"
 import { Button } from "../_components/ui/button"
 import { motion } from "framer-motion"
+import Link from "next/link"
 import { 
   ArrowDownTrayIcon, 
   CalendarIcon,
@@ -14,6 +15,7 @@ import {
   ChartBarIcon
 } from "@heroicons/react/24/outline"
 import { useAuth } from '../_lib/auth/AuthContext'
+import type { UserRole } from '../_lib/auth/AuthContext'
 
 const containerAnimation = {
   hidden: { opacity: 0 },
@@ -31,8 +33,14 @@ const itemAnimation = {
 }
 
 // Configuración de acciones rápidas por rol
-const quickActions = {
-  jefeOperativo: [
+const quickActions: Record<UserRole, Array<{
+  title: string
+  description: string
+  actionLabel: string
+  href: string
+  icon: React.ElementType
+}>> = {
+  'Jefe Operativo': [
     {
       title: "Añadir Propiedad",
       description: "Registra una nueva propiedad en el sistema",
@@ -40,13 +48,6 @@ const quickActions = {
       href: "/dashboard/proyectos/nuevo",
       icon: BuildingOffice2Icon
     },
-    // {
-    //   title: "Nueva Solicitud",
-    //   description: "Crea una nueva solicitud de servicio",
-    //   actionLabel: "Crear solicitud",
-    //   href: "/dashboard/solicitudes/nuevo",
-    //   icon: ClipboardDocumentListIcon
-    // },
     {
       title: "Ver Reportes",
       description: "Accede a los reportes y estadísticas",
@@ -55,7 +56,7 @@ const quickActions = {
       icon: ChartBarIcon
     }
   ],
-  administrador: [
+  'Administrador': [
     {
       title: "Gestionar Usuarios",
       description: "Administra los usuarios del sistema",
@@ -78,7 +79,7 @@ const quickActions = {
       icon: ChartBarIcon
     }
   ],
-  directorio: [
+  'Directorio': [
     {
       title: "Gestionar Usuarios",
       description: "Administra los usuarios del sistema",
@@ -101,7 +102,7 @@ const quickActions = {
       icon: ChartBarIcon
     }
   ],
-  propietario: [
+  'Propietario': [
     {
       title: "Mis Propiedades",
       description: "Visualiza tus propiedades registradas",
@@ -124,7 +125,7 @@ const quickActions = {
       icon: DocumentTextIcon
     }
   ],
-  arrendatario: [
+  'Arrendatario': [
     {
       title: "Mi Alquiler",
       description: "Detalles de tu propiedad alquilada",
@@ -150,24 +151,24 @@ const quickActions = {
 }
 
 // Títulos y descripciones por rol
-const dashboardContent = {
-  jefeOperativo: {
+const dashboardContent: Record<UserRole, { title: string; description: string }> = {
+  'Jefe Operativo': {
     title: "Bienvenido",
     description: "Resumen de todas las propiedades de Ethos"
   },
-  administrador: {
+  'Administrador': {
     title: "Panel de Administración",
     description: "Gestión general del sistema"
   },
-  directorio: {
+  'Directorio': {
     title: "Panel Ejecutivo",
     description: "Vista general de la empresa"
   },
-  propietario: {
+  'Propietario': {
     title: "Mi Panel",
     description: "Gestión de tus propiedades"
   },
-  arrendatario: {
+  'Arrendatario': {
     title: "Mi Panel",
     description: "Gestión de tu alquiler"
   }
@@ -175,11 +176,14 @@ const dashboardContent = {
 
 export default function DashboardPage() {
   const { role } = useAuth()
+  
+  if (!role) return null
+
   const content = dashboardContent[role]
   const actions = quickActions[role]
 
   // Roles que pueden ver solicitudes
-  const canViewRequests = ['administrador', 'directorio', 'propietario', 'arrendatario']
+  const canViewRequests = ['Administrador', 'Directorio', 'Propietario', 'Arrendatario']
 
   return (
     <motion.div
@@ -196,7 +200,9 @@ export default function DashboardPage() {
         <div className="border-l-4 border-[#008A4B] px-8 py-6">
           <div className="flex items-center gap-2 text-gray-500 mb-2">
             <CalendarIcon className="w-5 h-5" />
-            <span className="text-sm font-medium">Febrero 2025</span>
+            <span className="text-sm font-medium">
+              {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            </span>
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">{content.title}</h1>
           <p className="text-gray-600 mt-1">
@@ -270,22 +276,33 @@ function QuickActionCard({
 }) {
   return (
     <motion.div 
-      className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-shadow"
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
+      variants={itemAnimation}
+      className="bg-white rounded-2xl border p-6 hover:shadow-lg transition-shadow duration-300"
     >
-      <div className="flex items-center gap-3 mb-3">
-        <Icon className="w-6 h-6 text-[#008A4B]" />
-        <h3 className="font-bold text-lg">{title}</h3>
+      <div className="flex items-start gap-4">
+        <div className="bg-[#008A4B]/10 rounded-xl p-3">
+          <Icon className="w-6 h-6 text-[#008A4B]" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <p className="text-gray-500 mt-1 mb-4">{description}</p>
+          <Link 
+            href={href}
+            className="inline-flex items-center text-[#008A4B] hover:text-[#006837] font-medium"
+          >
+            {actionLabel}
+            <svg
+              className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
       </div>
-      <p className="text-gray-500 text-sm mb-4">{description}</p>
-      <Button 
-        variant="outline"
-        className="w-full border-[#008A4B] text-[#008A4B] hover:bg-[#008A4B] hover:text-white"
-        onClick={() => window.location.href = href}
-      >
-        {actionLabel}
-      </Button>
     </motion.div>
   )
 } 

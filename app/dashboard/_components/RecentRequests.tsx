@@ -7,9 +7,22 @@ interface RecentRequestsProps {
   role: UserRole
 }
 
+interface Request {
+  id: string
+  type: string
+  property: string
+  status: 'pendiente' | 'en_proceso' | 'completada'
+  date: string
+  priority: 'alta' | 'media' | 'baja'
+}
+
+interface RoleData {
+  requests: Request[]
+}
+
 // Datos de ejemplo - esto vendría de tu API
-const mockData = {
-  jefeOperativo: {
+const mockData: Record<string, RoleData> = {
+  'jefeoperativo': {
     requests: [
       {
         id: "REQ-001",
@@ -37,7 +50,7 @@ const mockData = {
       }
     ]
   },
-  administrador: {
+  'administrador': {
     requests: [
       {
         id: "REQ-001",
@@ -57,7 +70,7 @@ const mockData = {
       }
     ]
   },
-  directorio: {
+  'directorio': {
     requests: [
       {
         id: "REQ-001",
@@ -77,7 +90,7 @@ const mockData = {
       }
     ]
   },
-  propietario: {
+  'propietario': {
     requests: [
       {
         id: "REQ-001",
@@ -89,7 +102,7 @@ const mockData = {
       }
     ]
   },
-  arrendatario: {
+  'arrendatario': {
     requests: [
       {
         id: "REQ-001",
@@ -101,22 +114,31 @@ const mockData = {
       }
     ]
   }
-}
+};
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
   en_proceso: "bg-blue-100 text-blue-800",
   completada: "bg-green-100 text-green-800"
-}
+};
 
-const priorityStyles = {
+const priorityStyles: Record<string, string> = {
   alta: "bg-red-100 text-red-800",
   media: "bg-orange-100 text-orange-800",
   baja: "bg-gray-100 text-gray-800"
-}
+};
 
 export function RecentRequests({ role }: RecentRequestsProps) {
-  const data = mockData[role]
+  const roleKey = role.toLowerCase().replace(/\s+/g, '');
+  const data = mockData[roleKey];
+
+  if (!data || !data.requests) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        No hay solicitudes disponibles
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-full divide-y divide-gray-200">
@@ -156,7 +178,7 @@ export function RecentRequests({ role }: RecentRequestsProps) {
                 {request.property}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <Badge className={statusStyles[request.status as keyof typeof statusStyles]}>
+                <Badge className={statusStyles[request.status]}>
                   {request.status.replace('_', ' ')}
                 </Badge>
               </td>
@@ -164,7 +186,7 @@ export function RecentRequests({ role }: RecentRequestsProps) {
                 {request.date}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <Badge className={priorityStyles[request.priority as keyof typeof priorityStyles]}>
+                <Badge className={priorityStyles[request.priority]}>
                   {request.priority}
                 </Badge>
               </td>

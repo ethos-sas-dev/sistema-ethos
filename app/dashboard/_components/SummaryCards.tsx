@@ -4,16 +4,74 @@ import { motion } from "framer-motion"
 import { ArrowRightIcon } from "@heroicons/react/24/outline"
 import { PieChart, Pie, ResponsiveContainer, Cell } from "recharts"
 import type { UserRole } from '../../_lib/auth/AuthContext'
+import { useAuth } from '../../_lib/auth/AuthContext'
+import { gql, useQuery } from '@apollo/client'
 import Image from 'next/image'
 import Link from 'next/link'
+
+const GET_CLIENT_PROPERTIES = gql`
+  query GetClientProperties($documentId: ID!) {
+    perfilCliente(documentId: $documentId) {
+      propiedades {
+        documentId
+        tipoPropiedad
+        numeroPropiedad
+        estadoUso
+        estadoOcupacion
+        metraje
+        areaUtil
+        areaTotal
+        tipoUso
+      }
+    }
+  }
+`;
 
 interface SummaryCardsProps {
   role: UserRole
 }
 
-// Datos de ejemplo - esto vendría de tu API
-const mockData = {
-  jefeOperativo: {
+interface ChartData {
+  name: string
+  value: number
+}
+
+interface Chart {
+  title: string
+  subtitle: string
+  value: string
+  data: ChartData[]
+}
+
+interface Property {
+  id: string
+  name: string
+  location: string
+  area: string
+  status?: string
+  image: string
+}
+
+interface PropertyData {
+  documentId: string
+  tipoPropiedad: string
+  numeroPropiedad: string
+  estadoUso: string
+  estadoOcupacion: string
+  metraje: number
+  areaUtil: number
+  areaTotal: number
+  tipoUso: string
+}
+
+type RoleData = {
+  charts?: Chart[]
+  properties?: Property[]
+}
+
+// Datos de ejemplo para los charts - esto se mantiene para los roles operativos
+const mockData: Record<string, RoleData> = {
+  'jefeoperativo': {
     charts: [
       {
         title: "Propiedades activas",
@@ -26,7 +84,7 @@ const mockData = {
       }
     ]
   },
-  administrador: {
+  'administrador': {
     charts: [
       {
         title: "Propiedades activas",
@@ -47,7 +105,7 @@ const mockData = {
       }
     ]
   },
-  directorio: {
+  'directorio': {
     charts: [
       {
         title: "Propiedades activas",
@@ -65,65 +123,71 @@ const mockData = {
         data: [
           { name: "Pendientes", value: 3 }
         ]
-      }
-    ]
-  },
-  propietario: {
-    properties: [
-      {
-        id: "B03",
-        name: "Bodega 03",
-        location: "Lote 1",
-        area: "513 m²",
-        status: "En venta",
-        image: "/bodega.png"
-      },
-      {
-        id: "B04",
-        name: "Bodega 04",
-        location: "Lote 2",
-        area: "397 m²",
-        status: "En renta",
-        image: "/bodega.png"
-      },
-      {
-        id: "B09",
-        name: "Bodega 09",
-        location: "Lote 7",
-        area: "423 m²",
-        status: "",
-        image: "/bodega.png"
-      }
-    ]
-  },
-  arrendatario: {
-    properties: [
-      {
-        id: "B07",
-        name: "Bodega 07",
-        location: "Lote 4",
-        area: "405 m²",
-        status: "Arrendada",
-        image: "/bodega.png"
       }
     ]
   }
-}
+};
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   'En venta': 'bg-emerald-100 text-emerald-800',
   'En renta': 'bg-blue-100 text-blue-800',
   'Arrendada': 'bg-gray-100 text-gray-800'
-}
+};
 
 export function SummaryCards({ role }: SummaryCardsProps) {
-  const data = mockData[role]
+  const { user } = useAuth();
+  const roleKey = role.toLowerCase().replace(/\s+/g, '');
+
+  console.log('SummaryCards - User:', user);
+  console.log('SummaryCards - Role:', role);
+  console.log('SummaryCards - RoleKey:', roleKey);
+  console.log('SummaryCards - DocumentId:', user?.perfil_cliente?.documentId);
+
+  // Consulta GraphQL para obtener las propiedades del cliente
+  const { data: clientData, loading, error } = useQuery(GET_CLIENT_PROPERTIES, {
+    variables: { 
+      documentId: user?.perfil_cliente?.documentId 
+    },
+    skip: !user?.perfil_cliente?.documentId || (roleKey !== 'propietario' && roleKey !== 'arrendatario'),
+    onError: (error) => {
+      console.error('SummaryCards - Error en la consulta GraphQL:', {
+        message: error.message,
+        networkError: error.networkError,
+        graphQLErrors: error.graphQLErrors,
+      });
+    },
+    onCompleted: (data) => {
+      console.log('SummaryCards - Datos recibidos:', data);
+    }
+  });
+
+  // Para roles operativos, usamos los datos mock
+  const mockRoleData = mockData[roleKey];
+
+  // Si estamos cargando datos del cliente
+  if (loading) {
+    return (
+      <div className="w-full h-48 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#008A4B]"></div>
+      </div>
+    );
+  }
+
+  // Si hay un error en la consulta
+  if (error) {
+    console.error('Error al cargar las propiedades:', error);
+    return (
+      <div className="w-full p-4 text-center text-red-600">
+        Error al cargar las propiedades. Por favor, intente más tarde.
+      </div>
+    );
+  }
 
   // Para roles que ven gráficas (jefe operativo, administrador, directorio)
-  if ('charts' in data) {
+  if (mockRoleData?.charts) {
     return (
       <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {data.charts.map((chart, index) => (
+        {mockRoleData.charts.map((chart, index) => (
           <div 
             key={index}
             className="bg-white rounded-2xl border p-8 group hover:shadow-md transition-shadow duration-200"
@@ -171,19 +235,36 @@ export function SummaryCards({ role }: SummaryCardsProps) {
   }
 
   // Para propietarios y arrendatarios que ven sus propiedades
+  const properties: Property[] = clientData?.perfilCliente?.propiedades?.map((prop: PropertyData) => ({
+    id: prop.documentId,
+    name: `${prop.tipoPropiedad} ${prop.numeroPropiedad}`,
+    location: prop.tipoUso,
+    area: `${prop.areaTotal} m²`,
+    status: prop.estadoOcupacion,
+    image: '/bodega.png' // Por ahora usamos una imagen por defecto
+  })) || [];
+
+  if (properties.length === 0) {
+    return (
+      <div className="w-full p-4 text-center text-gray-500">
+        No se encontraron propiedades asociadas a tu perfil.
+      </div>
+    );
+  }
+
   return (
     <motion.div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Tus propiedades</h2>
         <Link 
-          href={role === 'propietario' ? "/dashboard/mis-propiedades" : "/dashboard/mi-alquiler"}
+          href={roleKey === 'propietario' ? "/dashboard/mis-propiedades" : "/dashboard/mi-alquiler"}
           className="text-[#008A4B] hover:text-[#006837] text-sm font-medium"
         >
           Ver todas
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.properties.map((property) => (
+        {properties.map((property) => (
           <motion.div
             key={property.id}
             className="bg-white rounded-xl overflow-hidden border group hover:shadow-lg transition-all duration-200"
@@ -197,7 +278,7 @@ export function SummaryCards({ role }: SummaryCardsProps) {
                 className="object-cover"
               />
               {property.status && (
-                <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium ${statusColors[property.status as keyof typeof statusColors]}`}>
+                <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium ${statusColors[property.status]}`}>
                   {property.status}
                 </span>
               )}
@@ -209,7 +290,7 @@ export function SummaryCards({ role }: SummaryCardsProps) {
               <h3 className="text-lg font-semibold">{property.name}</h3>
               <p className="text-gray-500 text-sm">{property.location}</p>
               <Link 
-                href={`/dashboard/${role === 'propietario' ? 'mis-propiedades' : 'mi-alquiler'}/${property.id}`}
+                href={`/dashboard/${roleKey === 'propietario' ? 'mis-propiedades' : 'mi-alquiler'}/${property.id}`}
                 className="mt-4 text-[#008A4B] hover:text-[#006837] text-sm font-medium flex items-center gap-2"
               >
                 Ver detalles

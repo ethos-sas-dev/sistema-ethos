@@ -1,6 +1,7 @@
 import './globals.css'
 import { DM_Sans } from 'next/font/google'
-import { AuthProvider } from './_lib/auth/AuthContext'
+import { metadata } from './metadata'
+import { RootProviders } from './_providers/root-providers'
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -8,10 +9,7 @@ const dmSans = DM_Sans({
   variable: '--font-dm-sans',
 })
 
-export const metadata = {
-  title: 'Sistema Ethos',
-  description: 'Sistema de gestión inmobiliaria',
-}
+export { metadata }
 
 export default function RootLayout({
   children,
@@ -21,9 +19,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={dmSans.variable}>
       <body className={`${dmSans.className} antialiased`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <RootProviders>{children}</RootProviders>
       </body>
     </html>
   )

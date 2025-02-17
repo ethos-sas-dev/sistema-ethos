@@ -3,9 +3,29 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
+import { useAuth } from "../_lib/auth/AuthContext"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const { login } = useAuth()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    try {
+      await login(email, password)
+    } catch (error) {
+      setError('Credenciales inválidas. Por favor, intente nuevamente.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -62,7 +82,13 @@ export default function LoginPage() {
             <div className="flex flex-col items-center justify-center h-full px-16">
               <h1 className="text-3xl font-bold mb-8 text-center">Iniciar Sesión</h1>
 
-              <form className="w-full max-w-[575px] bg-white border border-[#D9D9D9] rounded-lg p-6 space-y-6">
+              <form onSubmit={handleSubmit} className="w-full max-w-[575px] bg-white border border-[#D9D9D9] rounded-lg p-6 space-y-6">
+                {error && (
+                  <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                    {error}
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-base text-[#1E1E1E]">
                     Correo electrónico
@@ -70,8 +96,11 @@ export default function LoginPage() {
                   <input
                     type="email"
                     id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full p-3 border border-[#D9D9D9] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#008A4B] focus:border-transparent"
                     placeholder="usuario@ethos.com.ec"
+                    required
                   />
                 </div>
 
@@ -83,8 +112,11 @@ export default function LoginPage() {
                     <input
                       type={showPassword ? "text" : "password"}
                       id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="w-full p-3 border border-[#D9D9D9] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#008A4B] focus:border-transparent"
                       placeholder="micontraseña123"
+                      required
                     />
                     <button
                       type="button"
@@ -105,16 +137,16 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <Link href="/dashboard" className="">
-                  <button 
-                    type="submit" 
-                    className="w-full bg-[#008A4B] text-white py-3 rounded-lg mt-6 text-base font-normal hover:bg-[#006837] transition-colors"
+                <button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full bg-[#008A4B] text-white py-3 rounded-lg mt-6 text-base font-normal hover:bg-[#006837] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Iniciar sesión
-                  </button>
-                </Link>
+                  {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                </button>
+
                 <div className="text-center">
-                  <Link href="" className="text-base text-[#1E1E1E] underline hover:text-[#008A4B] transition-colors">
+                  <Link href="/recuperar-contrasena" className="text-base text-[#1E1E1E] underline hover:text-[#008A4B] transition-colors">
                     ¿Olvidaste tu contraseña?
                   </Link>
                 </div>

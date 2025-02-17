@@ -9,21 +9,19 @@ import {
   BuildingOffice2Icon,
   UserGroupIcon,
   DocumentTextIcon,
-  UserIcon,
-  BanknotesIcon,
-  BuildingLibraryIcon,
-  ArrowLeftOnRectangleIcon,
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline"
 import { useAuth } from '../_lib/auth/AuthContext'
 import type { UserRole } from '../_lib/auth/AuthContext'
 import { UserCircle } from "lucide-react"
+import ProtectedRoute from '../_components/ProtectedRoute'
 
 // Menús específicos por rol
-const menuItems = {
-  jefeOperativo: [
+const menuItems: Record<UserRole, Array<{ label: string; icon: any; href: string }>> = {
+  'Jefe Operativo': [
     {
       label: "Inicio",
       icon: HomeIcon,
@@ -40,7 +38,7 @@ const menuItems = {
       href: "/dashboard/propietarios"
     }
   ],
-  administrador: [
+  'Administrador': [
     {
       label: "Inicio",
       icon: HomeIcon,
@@ -77,7 +75,7 @@ const menuItems = {
       href: "/dashboard/usuarios"
     }
   ],
-  directorio: [
+  'Directorio': [
     {
       label: "Inicio",
       icon: HomeIcon,
@@ -112,9 +110,9 @@ const menuItems = {
       label: "Usuarios",
       icon: UserCircle,
       href: "/dashboard/usuarios"
-    },
+    }
   ],
-  propietario: [
+  'Propietario': [
     {
       label: "Inicio",
       icon: HomeIcon,
@@ -141,7 +139,7 @@ const menuItems = {
       href: "/dashboard/solicitudes"
     }
   ],
-  arrendatario: [
+  'Arrendatario': [
     {
       label: "Inicio",
       icon: HomeIcon,
@@ -170,55 +168,12 @@ const menuItems = {
   ]
 }
 
-// Componente de selector de rol (temporal para desarrollo)
-function RoleSelector() {
-  const { role, setRole } = useAuth();
-  
-  return (
-    <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50">
-      <select
-        value={role}
-        onChange={(e) => setRole(e.target.value as any)}
-        className="border rounded p-2"
-      >
-        <option value="jefeOperativo">Jefe Operativo</option>
-        <option value="administrador">Administrador</option>
-        <option value="directorio">Directorio</option>
-        <option value="propietario">Propietario</option>
-        <option value="arrendatario">Arrendatario</option>
-      </select>
-    </div>
-  );
-}
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
+function Sidebar({ items, role, logout }: { 
+  items: typeof menuItems[UserRole]
+  role: UserRole
+  logout: () => void 
 }) {
-  const { role } = useAuth()
-  const items = menuItems[role]
-  return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar items={items} role={role} />
-      <div className="flex-1 ml-[294px]">
-        <main className="p-8">{children}</main>
-      </div>
-      <RoleSelector />
-    </div>
-  )
-}
-
-function Sidebar({ items, role }: { items: typeof menuItems[keyof typeof menuItems], role: UserRole }) {
   const pathname = usePathname()
-
-  const roleLabels: Record<UserRole, string> = {
-    jefeOperativo: "Jefe Operativo",
-    administrador: "Administrador",
-    directorio: "Directorio",
-    propietario: "Propietario",
-    arrendatario: "Arrendatario"
-  }
 
   return (
     <aside className="w-[294px] fixed h-screen backdrop-blur-sm bg-gradient-to-br from-[#05703f] via-[#024728] to-[#01231a] text-white shadow-2xl border-r border-white/5">
@@ -238,8 +193,8 @@ function Sidebar({ items, role }: { items: typeof menuItems[keyof typeof menuIte
             priority 
           />
           <div className="flex flex-col">
-            <span className="font-semibold text-xl tracking-tight">Valentina</span>
-            <span className="text-sm text-white/70">{roleLabels[role]}</span>
+            <span className="font-semibold text-xl tracking-tight">Ethos</span>
+            <span className="text-sm text-white/70">{role}</span>
           </div>
         </div>
 
@@ -284,19 +239,46 @@ function Sidebar({ items, role }: { items: typeof menuItems[keyof typeof menuIte
         </ul>
 
         <div className="p-4 border-t border-white/10">
-          <Link href="/login">
-            <motion.button 
-              className="w-full bg-gradient-to-r from-[#008A4B] to-[#006837] text-white py-3 px-4 rounded-xl font-medium
-                hover:from-[#006837] hover:to-[#004d29] transition-all duration-300 flex items-center justify-center gap-2 group shadow-lg shadow-[#008A4B]/20"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <ArrowLeftOnRectangleIcon className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
-              Cerrar sesión
-            </motion.button>
-          </Link>
+          <button 
+            onClick={logout}
+            className="w-full bg-gradient-to-r from-[#008A4B] to-[#006837] text-white py-3 px-4 rounded-xl font-medium
+              hover:from-[#006837] hover:to-[#004d29] transition-all duration-300 flex items-center justify-center gap-2 group shadow-lg shadow-[#008A4B]/20"
+          >
+            <ArrowLeftOnRectangleIcon className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
+            Cerrar sesión
+          </button>
         </div>
       </motion.nav>
     </aside>
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { user, role, logout } = useAuth()
+
+  if (!user || !role) {
+    console.log('No hay usuario o rol:', { user, role }) // Para debugging
+    return null
+  }
+
+  // Verificar si el rol es válido
+  if (!menuItems[role]) {
+    console.log('Rol no válido:', role) // Para debugging
+    return null
+  }
+
+  return (
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-white">
+        <Sidebar items={menuItems[role]} role={role} logout={logout} />
+        <div className="flex-1 ml-[294px]">
+          <main className="p-8">{children}</main>
+        </div>
+      </div>
+    </ProtectedRoute>
   )
 } 
