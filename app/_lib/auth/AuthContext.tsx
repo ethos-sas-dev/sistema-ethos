@@ -10,8 +10,12 @@ interface User {
   username: string;
   email: string;
   perfil_operacional?: {
-    id: number;
+    documentId: string;
     rol: 'Jefe Operativo' | 'Administrador' | 'Directorio';
+    proyectosAsignados: {
+      documentId: string;
+      nombre: string;
+    }[];
   };
   perfil_cliente?: {
     id: number;
@@ -50,10 +54,16 @@ const ME_QUERY = gql`
       email
       perfil_operacional {
         id
+        documentId
         rol
+        proyectosAsignados {
+          documentId
+          nombre
+        }
       }
       perfil_cliente {
         id
+        documentId
         rol
         tipoPersona
         esEmpresaRepresentante
@@ -102,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const userResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_STRAPI_API_URL}/api/users/me?populate[0]=perfil_operacional&populate[1]=perfil_cliente`, 
+          `${process.env.NEXT_PUBLIC_STRAPI_API_URL}/api/users/me?populate[0]=perfil_operacional&populate[1]=perfil_cliente&populate[2]=perfil_operacional.proyectosAsignados`, 
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -167,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Obtener los datos completos del usuario incluyendo los perfiles
         const profileResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_STRAPI_API_URL}/api/users/me?populate[0]=perfil_operacional&populate[1]=perfil_cliente`,
+          `${process.env.NEXT_PUBLIC_STRAPI_API_URL}/api/users/me?populate[0]=perfil_operacional&populate[1]=perfil_cliente&populate[2]=perfil_operacional.proyectosAsignados`,
           {
             headers: {
               Authorization: `Bearer ${data.jwt}`,

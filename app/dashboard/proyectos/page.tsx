@@ -1,175 +1,219 @@
 'use client'
 
-import { motion } from "framer-motion"
-import { 
-  MagnifyingGlassIcon, 
-  FunnelIcon,
-  BuildingOffice2Icon,
-  MapPinIcon,
-  UserGroupIcon,
-  ChevronRightIcon
-} from "@heroicons/react/24/outline"
-import { Button } from "../../_components/ui/button" 
-import Link from "next/link"
-import { useAuth } from '../../_lib/auth/AuthContext'
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "../../_lib/auth/AuthContext"
+import { gql, useQuery } from '@apollo/client'
+import Image from "next/image"
 
-// Datos de ejemplo - esto vendría de tu API
-const allProjects = [
-  {
-    id: 1,
-    name: "Almax 3",
-    type: "Industrial",
-    location: "Zona Norte, Ciudad",
-    units: 205,
-    activeUnits: 195,
-    pendingRequests: 3,
-    lastUpdate: "2024-02-15",
-    assignedTo: "Juan Pérez"
-  },
-  {
-    id: 2,
-    name: "Centro Empresarial Sur",
-    type: "Comercial",
-    location: "Zona Sur, Ciudad",
-    units: 150,
-    activeUnits: 142,
-    pendingRequests: 5,
-    lastUpdate: "2024-02-14",
-    assignedTo: "María López"
-  },
-  {
-    id: 3,
-    name: "Plaza Central",
-    type: "Comercial",
-    location: "Zona Este, Ciudad",
-    units: 80,
-    activeUnits: 75,
-    pendingRequests: 2,
-    lastUpdate: "2024-02-13",
-    assignedTo: "Carlos Ruiz"
-  },
-]
-
-// Configuración específica por rol
-const roleConfig = {
-  jefeOperativo: {
-    title: "Proyectos Asignados",
-    description: "Gestiona y supervisa tus proyectos asignados",
-    canCreate: false,
-    getProjects: () => allProjects.slice(0, 1) // Solo el primer proyecto para el ejemplo
-  },
-  administrador: {
-    title: "Todos los Proyectos",
-    description: "Administra y supervisa todos los proyectos",
-    canCreate: false,
-    getProjects: () => allProjects
-  },
-  directorio: {
-    title: "Todos los Proyectos",
-    description: "Administra y supervisa de todos los proyectos",
-    canCreate: true,
-    getProjects: () => allProjects
+// Consulta para obtener todos los proyectos (Directorio)
+const GET_ALL_PROJECTS = gql`
+  query GetAllProjects {
+    proyectos {
+      data {
+        id
+        documentId
+        nombre
+        descripcion
+        ubicacion
+        perfilOperacional {
+          data {
+            usuario {
+              data {
+                username
+              }
+            }
+          }
+        }
+        unidadNegocio {
+          data {
+            nombre
+          }
+        }
+        fotoProyecto {
+          data {
+            url
+          }
+        }
+        createdAt
+        updatedAt
+        publishedAt
+      }
+    }
   }
+`;
+
+// Consulta para obtener proyectos asignados (Jefe Operativo y Administrador)
+const GET_ASSIGNED_PROJECTS = gql`
+  query GetAssignedProjects($documentId: ID!) {
+    perfilOperacional(documentId: $documentId) {
+      proyectosAsignados {
+        documentId
+        nombre
+        descripcion
+        ubicacion
+        unidadNegocio {
+          nombre
+        }
+        fotoProyecto {
+          url
+        }
+        createdAt
+        updatedAt
+        publishedAt
+      }
+    }
+  }
+`;
+
+interface Project {
+  id?: string;
+  documentId: string;
+  nombre: string;
+  descripcion: string;
+  ubicacion: string;
+  perfilOperacional?: {
+    usuario: {
+      username: string;
+    };
+  };
+  unidadNegocio?: {
+    nombre: string;
+  };
+  fotoProyecto?: {
+    url: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
 }
 
-export default function ProjectsPage() {
-  const { role } = useAuth()
+export default function ProyectosPage() {
+  const { user, role } = useAuth()
+  const router = useRouter()
+
+  // Verificar roles permitidos
+  const allowedRoles = ['Jefe Operativo', 'Administrador', 'Directorio']
   
-  // Si el rol no tiene acceso a proyectos, redirigir o mostrar mensaje
-  if (!roleConfig[role as keyof typeof roleConfig]) {
+  useEffect(() => {
+    if (!allowedRoles.includes(role || '')) {
+      router.push("/dashboard")
+    }
+  }, [role, router])
+
+  // Seleccionar la consulta apropiada según el rol
+  const isDirectorio = role === 'Directorio'
+  const query = isDirectorio ? GET_ALL_PROJECTS : GET_ASSIGNED_PROJECTS
+  const variables = isDirectorio ? {} : { documentId: user?.perfil_operacional?.documentId }
+
+  const { data, loading, error } = useQuery(query, {
+    variables,
+    skip: !user || (role !== 'Directorio' && !user?.perfil_operacional?.documentId),
+  })
+
+  if (!allowedRoles.includes(role || '')) return null
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-gray-500">No tienes acceso a esta sección</p>
+      <div className="w-full h-48 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#008A4B]"></div>
       </div>
     )
   }
 
-  const config = roleConfig[role as keyof typeof roleConfig]
-  const projects = config.getProjects()
+  if (error) {
+    console.error('Error al cargar los proyectos:', error)
+    return (
+      <div className="w-full p-4 text-center text-red-600">
+        Error al cargar los proyectos. Por favor, intente más tarde.
+      </div>
+    )
+  }
+
+  // Procesar los datos según el rol
+  const projects: Project[] = isDirectorio
+    ? data?.proyectos?.data?.map((item: any) => ({
+        id: item.id,
+        ...item,
+        perfilOperacional: item.perfilOperacional?.data,
+        unidadNegocio: item.unidadNegocio?.data,
+        fotoProyecto: item.fotoProyecto?.data
+      })) || []
+    : data?.perfilOperacional?.proyectosAsignados || []
+
+  if (projects.length === 0) {
+    return (
+      <div className="w-full p-4 text-center text-gray-500">
+        No se encontraron proyectos {!isDirectorio ? 'asignados' : ''}.
+      </div>
+    )
+  }
+
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{config.title}</h1>
-          <p className="text-gray-500 mt-1">{config.description}</p>
-        </div>
-        {config.canCreate && (
-          <Button className="bg-[#008A4B] hover:bg-[#006837]">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {isDirectorio ? 'Todos los Proyectos' : 'Proyectos Asignados'}
+        </h1>
+        
+        {/* Aquí puedes agregar botones de acción según el rol */}
+        {(role === 'Administrador' || role === 'Directorio') && (
+          <button
+            onClick={() => router.push('/dashboard/proyectos/nuevo')}
+            className="bg-[#008A4B] text-white px-4 py-2 rounded-lg hover:bg-[#006837] transition-colors"
+          >
             Nuevo Proyecto
-          </Button>
+          </button>
         )}
       </div>
 
-      {/* Filters and Search */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1 relative">
-          <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o ubicación..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008A4B]/20 focus:border-[#008A4B]"
-          />
-        </div>
-        <Button variant="outline" className="flex items-center gap-2">
-          <FunnelIcon className="w-4 h-4" />
-          Filtros
-        </Button>
-      </div>
-
-      {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((project) => (
-          <Link href={`/dashboard/proyectos/${project.id}`} key={project.id}>
-            <motion.div
-              className="bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow p-6 cursor-pointer group h-full"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-gray-900 group-hover:text-[#008A4B] transition-colors">
-                    {project.name}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                    <MapPinIcon className="w-4 h-4" />
-                    {project.location}
-                  </div>
-                </div>
+          <div
+            key={project.documentId}
+            className="bg-white rounded-xl overflow-hidden border hover:shadow-lg transition-shadow duration-200"
+          >
+            {project.fotoProyecto?.url && (
+              <div className="relative h-48">
+                <Image
+                  src={project.fotoProyecto.url}
+                  alt={project.nombre}
+                  fill
+                  className="object-cover"
+                />
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <BuildingOffice2Icon className="w-4 h-4" />
-                  <span className="text-sm">{project.type}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <UserGroupIcon className="w-4 h-4" />
-                  <span className="text-sm">{project.activeUnits} de {project.units} unidades activas</span>
-                </div>
-                {(role === 'administrador' || role === 'directorio') && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <UserGroupIcon className="w-4 h-4" />
-                    <span className="text-sm">Asignado a: {project.assignedTo}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm">
-                <span className="text-gray-500">
-                  {project.pendingRequests} solicitudes pendientes
+            )}
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {project.nombre}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {project.ubicacion}
+              </p>
+              {project.unidadNegocio && (
+                <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                  {project.unidadNegocio.nombre}
                 </span>
-                <ChevronRightIcon className="w-5 h-5 text-gray-400 group-hover:text-[#008A4B] group-hover:translate-x-1 transition-all" />
-              </div>
-            </motion.div>
-          </Link>
+              )}
+              <p className="mt-4 text-sm text-gray-600 line-clamp-2">
+                {project.descripcion}
+              </p>
+              {(role === 'Administrador' || role === 'Directorio') && project.perfilOperacional?.usuario && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Asignado a: {project.perfilOperacional.usuario.username}
+                </p>
+              )}
+              <button
+                onClick={() => router.push(`/dashboard/proyectos/${project.documentId}`)}
+                className="mt-6 w-full bg-gray-50 text-[#008A4B] px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                Ver Detalles
+              </button>
+            </div>
+          </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   )
 } 
