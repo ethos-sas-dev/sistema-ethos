@@ -2,6 +2,9 @@ import './globals.css'
 import { DM_Sans } from 'next/font/google'
 import { metadata } from './metadata'
 import { RootProviders } from './_providers/root-providers'
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import { extractRouterConfig } from "uploadthing/server";
+import { ourFileRouter } from "./api/uploadthing/core";
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -19,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={dmSans.variable}>
       <body className={`${dmSans.className} antialiased`}>
+        <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
         <RootProviders>{children}</RootProviders>
       </body>
     </html>

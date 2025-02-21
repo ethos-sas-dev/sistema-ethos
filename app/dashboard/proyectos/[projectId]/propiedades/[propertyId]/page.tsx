@@ -17,8 +17,9 @@ import {
 import Link from "next/link";
 import { use } from "react";
 import { useAuth } from "../../../../../_lib/auth/AuthContext";
-import { gql, useQuery } from "@apollo/client";
+import { gql, useQuery, useMutation } from "@apollo/client";
 import Image from "next/image";
+import { DocumentUploadButton } from "../../../../../_components/DocumentUploadButton";
 
 // Interfaces para los documentos
 interface Document {
@@ -50,7 +51,7 @@ interface RucDocument {
 interface EmpresaRepresentanteLegal {
   autorizacionRepresentacionPdf: Document;
   cedulaRepresentanteLegalPdf: Document;
-  rucEmpresaRepresentanteLegal: RucDocument;
+  rucEmpresaRepresentanteLegal: RucDocument[];
   nombreComercial?: string;
   nombreRepresentanteLegalRL?: string;
   cedulaRepresentanteLegal?: string;
@@ -80,6 +81,7 @@ interface DatosPersonaNatural {
 }
 
 interface Propietario {
+  documentId: string;
   contactoAccesos: ContactInfo;
   contactoAdministrativo?: ContactInfo;
   contactoGerente?: ContactInfo;
@@ -99,6 +101,8 @@ interface Ocupante {
     nombramientoRepresentanteLegalPdf: Document;
     rucPersonaJuridica: Array<RucDocument>;
     razonSocial: string;
+    representanteLegalEsEmpresa: boolean;
+    empresaRepresentanteLegal: EmpresaRepresentanteLegal;
   };
   datosPersonaNatural?: {
     cedulaPdf: Document;
@@ -120,6 +124,8 @@ interface Ocupante {
       nombramientoRepresentanteLegalPdf: Document;
       rucPersonaJuridica: Array<RucDocument>;
       razonSocial: string;
+      representanteLegalEsEmpresa: boolean;
+      empresaRepresentanteLegal: EmpresaRepresentanteLegal;
     };
     contactoAccesos?: {
       nombreCompleto: string;
@@ -236,6 +242,7 @@ const GET_PROPERTY_DETAILS = gql`
         nombre
       }
       actaEntregaPdf {
+        documentId
         url
         fechaSubida
         nombre
@@ -251,12 +258,14 @@ const GET_PROPERTY_DETAILS = gql`
       }
       codigoCatastral
       contratoArrendamientoPdf {
+        documentId
         url
         fechaSubida
         nombre
       }
       documentId
       escrituraPdf {
+        documentId
         url
         nombre
         fechaSubida
@@ -308,6 +317,7 @@ const GET_PROPERTY_DETAILS = gql`
         ObligadoTrampaDeGrasa
       }
       propietario {
+        documentId
         contactoAccesos {
           nombreCompleto
           telefono
@@ -326,7 +336,8 @@ const GET_PROPERTY_DETAILS = gql`
           telefono
         }
         contratosArrendamiento {
-          archivo {
+          archivo { 
+            documentId
             nombre
             fechaSubida
             url
@@ -334,11 +345,13 @@ const GET_PROPERTY_DETAILS = gql`
         }
         datosPersonaJuridica {
           cedulaRepresentanteLegalPdf {
+            documentId
             nombre
             fechaSubida
             url
           }
           nombramientoRepresentanteLegalPdf {
+            documentId
             nombre
             fechaSubida
             url
@@ -346,6 +359,7 @@ const GET_PROPERTY_DETAILS = gql`
           rucPersonaJuridica {
             ruc
             rucPdf {
+              documentId
               nombre
               fechaSubida
               url
@@ -358,11 +372,13 @@ const GET_PROPERTY_DETAILS = gql`
           nombreComercial
           empresaRepresentanteLegal {
             autorizacionRepresentacionPdf {
+              documentId
               nombre
               fechaSubida
               url
             }
             cedulaRepresentanteLegalPdf {
+              documentId
               nombre
               fechaSubida
               url
@@ -370,6 +386,7 @@ const GET_PROPERTY_DETAILS = gql`
             rucEmpresaRepresentanteLegal {
               ruc
               rucPdf {
+                documentId
                 nombre
                 fechaSubida
                 url
@@ -384,11 +401,13 @@ const GET_PROPERTY_DETAILS = gql`
         }
         datosPersonaNatural {
           cedulaPdf {
+            documentId
             nombre
             fechaSubida
             url
           }
           rucPdf {
+            documentId
             nombre
             fechaSubida
             url
@@ -401,14 +420,17 @@ const GET_PROPERTY_DETAILS = gql`
         tipoPersona
       }
       ocupantes {
+        documentId
         tipoOcupante
         datosPersonaJuridica {
           cedulaRepresentanteLegalPdf {
+            documentId
             nombre
             fechaSubida
             url
           }
           nombramientoRepresentanteLegalPdf {
+            documentId
             nombre
             fechaSubida
             url
@@ -416,21 +438,56 @@ const GET_PROPERTY_DETAILS = gql`
           rucPersonaJuridica {
             ruc
             rucPdf {
+              documentId
               nombre
               fechaSubida
               url
             }
           }
+          cedulaRepresentanteLegal
+          razonSocialRepresentanteLegal
           razonSocial
+          representanteLegalEsEmpresa
+          nombreComercial
+          empresaRepresentanteLegal {
+            autorizacionRepresentacionPdf {
+              documentId
+              nombre
+              fechaSubida
+              url
+            }
+            cedulaRepresentanteLegalPdf {
+              documentId
+              nombre
+              fechaSubida
+              url
+            }
+            rucEmpresaRepresentanteLegal {
+              ruc
+              rucPdf {
+                documentId
+                nombre
+                fechaSubida
+                url
+              }
+            }
+            nombreComercial
+            nombreRepresentanteLegalRL
+            observaciones
+            direccionLegal
+            cedulaRepresentanteLegal
+          }
         }
         datosPersonaNatural {
           cedulaPdf {
+            documentId
             nombre
             fechaSubida
             url
           }
           aplicaRuc
           rucPdf {
+            documentId
             nombre
             fechaSubida
             url
@@ -438,14 +495,17 @@ const GET_PROPERTY_DETAILS = gql`
           razonSocial
         }
         perfilCliente {
+          documentId
           datosPersonaNatural {
             cedulaPdf {
+              documentId
               nombre
               fechaSubida
               url
             }
             aplicaRuc
             rucPdf {
+              documentId
               nombre
               fechaSubida
               url
@@ -453,25 +513,60 @@ const GET_PROPERTY_DETAILS = gql`
             razonSocial
           }
           datosPersonaJuridica {
+          cedulaRepresentanteLegalPdf {
+            documentId
+            nombre
+            fechaSubida
+            url
+          }
+          nombramientoRepresentanteLegalPdf {
+            documentId
+            nombre
+            fechaSubida
+            url
+          }
+          rucPersonaJuridica {
+            ruc
+            rucPdf {
+              documentId
+              nombre
+              fechaSubida
+              url
+            }
+          }
+          cedulaRepresentanteLegal
+          razonSocialRepresentanteLegal
+          razonSocial
+          representanteLegalEsEmpresa
+          nombreComercial
+          empresaRepresentanteLegal {
+            autorizacionRepresentacionPdf {
+              documentId
+              nombre
+              fechaSubida
+              url
+            }
             cedulaRepresentanteLegalPdf {
+              documentId
               nombre
               fechaSubida
               url
             }
-            nombramientoRepresentanteLegalPdf {
-              nombre
-              fechaSubida
-              url
-            }
-            rucPersonaJuridica {
+            rucEmpresaRepresentanteLegal {
               ruc
               rucPdf {
+                documentId
                 nombre
                 fechaSubida
                 url
               }
             }
-            razonSocial
+            nombreComercial
+            nombreRepresentanteLegalRL
+            observaciones
+            direccionLegal
+            cedulaRepresentanteLegal
+          }
           }
           contactoAccesos {
             nombreCompleto
@@ -501,8 +596,56 @@ const GET_PROPERTY_DETAILS = gql`
     }
   }
 `;
+const CREATE_ARCHIVO = gql`
+  mutation CreateArchivo($data: ArchivoInput!) {
+    createArchivo(data: $data) {
+      documentId
+      nombre
+      url
+      fechaSubida
+      tipoArchivo
+    }
+  }
+`;
 
-export default function PropertyDetailPage({
+interface UploadQueueItem {
+  url: string;
+  name: string;
+  field: string;
+  type: "property" | "propietario" | "ocupante";
+  ocupante?: any;
+}
+
+// Cambiar de Promise[] a objeto con metadata
+const uploadQueue: UploadQueueItem[] = [];
+let isProcessing = false;
+
+// Añadir este componente CheckmarkIcon dentro del archivo
+const CheckmarkIcon = () => (
+  <motion.svg 
+    className="w-6 h-6 text-[#008A4B]"
+    viewBox="0 0 24 24"
+    initial={{ scale: 0 }}
+    animate={{ scale: 1 }}
+    transition={{ 
+      type: "spring",
+      stiffness: 260,
+      damping: 20 
+    }}
+  >
+    <motion.path
+      fill="none"
+      strokeWidth="3"
+      stroke="currentColor"
+      d="M5.5 12.5l4.5 4.5 8.5-8.5"
+      initial={{ pathLength: 0 }}
+      animate={{ pathLength: 1 }}
+      transition={{ duration: 0.5 }}
+    />
+  </motion.svg>
+);
+
+export default function PropertyDetailPage({ 
   params,
 }: {
   params: Promise<{ projectId: string; propertyId: string }>;
@@ -514,11 +657,13 @@ export default function PropertyDetailPage({
   // Verificar si el usuario tiene permisos de administración
   const isAdmin = role === "Administrador" || role === "Directorio";
 
-  const { data, loading, error } = useQuery(GET_PROPERTY_DETAILS, {
+  const { data, loading, error, refetch } = useQuery(GET_PROPERTY_DETAILS, {
     variables: { documentId: propertyId },
     skip: !propertyId,
   });
-
+  console.log(data?.propiedad.ocupantes);
+  const [crearArchivo] = useMutation(CREATE_ARCHIVO);
+  
   if (loading) {
     return (
       <div className="w-full h-48 flex items-center justify-center">
@@ -537,7 +682,7 @@ export default function PropertyDetailPage({
   }
 
   const property: Property = data?.propiedad;
-  console.log(property);
+ 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("es-ES", {
       year: "numeric",
@@ -577,7 +722,7 @@ export default function PropertyDetailPage({
                 .empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
               property.propietario.datosPersonaJuridica
                 .empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal
-                ?.rucPdf,
+                ?.map((rucDoc) => rucDoc.rucPdf) || [],
             ]
           : []),
       ];
@@ -614,6 +759,109 @@ export default function PropertyDetailPage({
         : []),
     ];
     return docs.filter(Boolean).length;
+  };
+
+  const processUploadQueue = async () => {
+    if (isProcessing || uploadQueue.length === 0) return;
+    
+    isProcessing = true;
+    try {
+      // Procesar cada item en la cola en orden
+      while (uploadQueue.length > 0) {
+        const nextUpload = uploadQueue.shift();
+        if (nextUpload) {
+          const { url, name, field, type, ocupante } = nextUpload;
+          
+          // Crear archivo
+          const { data: archivoData } = await crearArchivo({
+            variables: {
+              data: {
+                nombre: name,
+                url: url,
+                tipoArchivo: "pdf",
+                fechaSubida: new Date().toISOString()
+              }
+            }
+          });
+
+          const archivoId = archivoData?.createArchivo?.documentId;
+          if (!archivoId) throw new Error("No se pudo crear el archivo");
+
+          // Obtener datos actuales
+          let currentData = null;
+          if (type === 'propietario') {
+            const { data: propData } = await refetch();
+            currentData = propData.propiedad.propietario;
+          } else if (type === 'ocupante') {
+            const { data: propData } = await refetch();
+            if (ocupante?.tipoOcupante === 'arrendatario') {
+              currentData = propData.propiedad.ocupantes.find(
+                (o: any) => o.perfilCliente?.documentId === ocupante.perfilCliente?.documentId
+              )?.perfilCliente;
+            } else {
+              currentData = propData.propiedad.ocupantes.find(
+                (o: any) => o.documentId === ocupante.documentId
+              );
+            }
+          }
+
+          // Actualizar documento
+          const response = await fetch('/api/documentos', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              documentId: type === 'property' 
+                ? propertyId 
+                : type === 'propietario'
+                  ? property.propietario?.documentId
+                  : type === 'ocupante' && ocupante?.tipoOcupante === 'arrendatario'
+                    ? ocupante?.perfilCliente?.documentId
+                    : ocupante?.documentId,
+              field,
+              archivoId,
+              type,
+              currentData,
+              tipoOcupante: type === 'ocupante' ? ocupante?.tipoOcupante : undefined
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Error updating document field');
+          }
+
+          await refetch();
+        }
+      }
+    } finally {
+      isProcessing = false;
+    }
+  };
+
+  const handleDocumentUpload = async (url: string, name: string, field: string, type: "property" | "propietario" | "ocupante" = "property", ocupante?: any) => {
+    // Agregar a la cola con toda la información necesaria
+    uploadQueue.push({ url, name, field, type, ocupante });
+    
+    // Crear una promesa que se resolverá cuando se procese este item
+    const promise = new Promise<void>((resolve, reject) => {
+      const checkQueue = setInterval(() => {
+        if (!uploadQueue.some(item => 
+          item.url === url && 
+          item.field === field && 
+          item.type === type
+        )) {
+          clearInterval(checkQueue);
+          resolve();
+        }
+      }, 100);
+    });
+
+    // Intentar procesar la cola
+    processUploadQueue();
+
+    // Retornar la promesa para que el DocumentUploadButton pueda mostrar el estado
+    return promise;
   };
 
   return (
@@ -659,7 +907,7 @@ export default function PropertyDetailPage({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
             <div className="flex justify-between items-end">
-              <div>
+          <div>
                 <h1 className="text-3xl font-semibold">
                   {property.identificadores.superior}{" "}
                   {property.identificadores.idSuperior}
@@ -668,30 +916,30 @@ export default function PropertyDetailPage({
                   {property.identificadores.inferior}{" "}
                   {property.identificadores.idInferior}
                 </p>
-              </div>
+            </div>
               <div className="flex gap-2">
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium bg-white/20 backdrop-blur-sm`}
                 >
                   {property.areaTotal} m²
                 </span>
-              </div>
-            </div>
           </div>
         </div>
+          </div>
+      </div>
 
         {/* Información básica */}
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <div>
+        <div>
                 <h3 className="text-sm font-medium text-gray-500">
                   Código Catastral
                 </h3>
                 <p className="text-base font-medium mt-1">
                   {property.codigoCatastral}
                 </p>
-              </div>
+            </div>
               {property.ocupantes && property.ocupantes.length > 0 && (
                 <div className="mt-4 space-y-1">
                   <h3 className="text-sm font-medium text-gray-500">
@@ -729,7 +977,7 @@ export default function PropertyDetailPage({
              
             </div>
             <div className="space-y-4">
-              <div>
+            <div>
                 <h3 className="text-sm font-medium text-gray-500">
                   Estado de Uso
                 </h3>
@@ -742,8 +990,8 @@ export default function PropertyDetailPage({
                 >
                   {property.estadoUso === "enUso" ? "En uso" : "Disponible"}
                 </span>
-              </div>
-              <div>
+            </div>
+            <div>
                 <h3 className="text-sm font-medium text-gray-500">
                   Estado de Ocupación
                 </h3>
@@ -762,8 +1010,8 @@ export default function PropertyDetailPage({
                     ? "Uso propietario"
                     : "Arrendado"}
                 </span>
-              </div>
-              <div>
+            </div>
+            <div>
                 <h3 className="text-sm font-medium text-gray-500">
                   Estado de Construcción
                 </h3>
@@ -777,7 +1025,7 @@ export default function PropertyDetailPage({
                   {property.estadoDeConstruccion.charAt(0).toUpperCase() +
                     property.estadoDeConstruccion.slice(1)}
                 </span>
-              </div>
+            </div>
             </div>
           
           </div>
@@ -827,10 +1075,10 @@ export default function PropertyDetailPage({
                 {property.componentesAdicionales.trampasGrasa.map((trampa, index) => (
                   <div key={index} className="bg-white rounded-xl border p-6 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div>
+            <div>
                         <h3 className="font-semibold text-gray-900">Trampa {index + 1}</h3>
                         <p className="text-sm text-gray-500">{trampa.descripcion}</p>
-                      </div>
+            </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         trampa.estado === "activa" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                       }`}>
@@ -897,10 +1145,10 @@ export default function PropertyDetailPage({
               {property.componentesAdicionales.adecuaciones.map((adecuacion, index) => (
                 <div key={index} className="bg-white rounded-xl border p-6 space-y-4">
                   <div className="flex justify-between items-start">
-                    <div>
+            <div>
                       <h3 className="font-semibold text-gray-900">Adecuación {index + 1}</h3>
                       <p className="text-sm text-gray-500">{adecuacion.descripcion}</p>
-                    </div>
+            </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       adecuacion.estado === "completada" 
                         ? "bg-green-100 text-green-800" 
@@ -928,8 +1176,8 @@ export default function PropertyDetailPage({
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Fecha realización:</span>
                       <span className="font-medium">{new Date(adecuacion.fechaRealizacion).toLocaleDateString()}</span>
-                    </div>
-                  </div>
+          </div>
+        </div>
 
                   {adecuacion.documentosRespaldos && adecuacion.documentosRespaldos.length > 0 && (
                     <div className="mt-4">
@@ -1179,133 +1427,71 @@ export default function PropertyDetailPage({
               Información de la Propiedad
             </h2>
           </div>
-          <div className="space-y-4">
+            <div className="space-y-4">
+            {/* Progress Indicator para documentos de propiedad */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">Documentos de la Propiedad</h3>
-              {/* Progress Indicator */}
               <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-medium">
-                  {`${getPropertyUploadedDocsCount(
-                    property
-                  )}/${getPropertyRequiredDocsCount(property)}`}
+                <div className="flex items-center gap-2">
+                  {getPropertyUploadedDocsCount(property) === getPropertyRequiredDocsCount(property) ? (
+                    <div className="flex items-center gap-2 text-[#008A4B]">
+                      <CheckmarkIcon />
+                      <span className="text-sm font-medium">Completo</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-sm font-medium">
+                        {`${getPropertyUploadedDocsCount(property)}/${getPropertyRequiredDocsCount(property)}`}
+                      </div>
+                      <div className="text-sm text-gray-500">documentos subidos</div>
+                    </>
+                  )}
                 </div>
-                <div className="text-sm text-gray-500">documentos subidos</div>
+                <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-[#008A4B]"
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: `${(getPropertyUploadedDocsCount(property) / getPropertyRequiredDocsCount(property)) * 100}%` 
+                    }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
               </div>
-              <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#008A4B] transition-all duration-300"
-                  style={{
-                    width: (() => {
-                      const uploadedDocs = getPropertyUploadedDocsCount(property);
-                      const requiredDocs = getPropertyRequiredDocsCount(property);
-                      return `${(uploadedDocs / requiredDocs) * 100}%`;
-                    })(),
-                  }}
+            </div>
+            {/* Documentos de la propiedad */}
+            <div className="space-y-4">
+              {/* Escritura */}
+              <DocumentUploadButton
+                documentType="Escritura"
+                propertyId={propertyId}
+                onUploadComplete={(url: string, name: string) => 
+                  handleDocumentUpload(url, name, "escrituraPdf", "property")}
+                currentDocument={property.escrituraPdf}
+              />
+
+              {/* Acta de Entrega */}
+              <DocumentUploadButton
+                documentType="Acta de Entrega"
+                propertyId={propertyId}
+                onUploadComplete={(url: string, name: string) => 
+                  handleDocumentUpload(url, name, "actaEntregaPdf", "property")}
+                currentDocument={property.actaEntregaPdf}
+              />
+
+              {/* Contrato de Arrendamiento - solo si la propiedad está arrendada */}
+              {property.ocupantes?.some(
+                (ocupante) => ocupante.tipoOcupante === "arrendatario"
+              ) && (
+                <DocumentUploadButton
+                  documentType="Contrato de Arrendamiento"
+                  propertyId={propertyId}
+                  onUploadComplete={(url: string, name: string) => 
+                    handleDocumentUpload(url, name, "contratoArrendamientoPdf", "property")}
+                  currentDocument={property.contratoArrendamientoPdf}
                 />
-              </div>
+              )}
             </div>
-            </div>
-            {/* Escritura */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                <div>
-                  <h4 className="text-base font-semibold text-gray-900">
-                    Escritura
-                  </h4>
-                  {property.escrituraPdf ? (
-                    <p className="text-sm text-gray-500">
-                      {property.escrituraPdf.nombre}
-                      {property.escrituraPdf.fechaSubida &&
-                        ` - Subido el ${formatDate(
-                          property.escrituraPdf.fechaSubida
-                        )}`}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-amber-600">Pendiente de subir</p>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                className="text-[#008A4B] hover:text-[#006837]"
-                onClick={() => window.open(property.escrituraPdf?.url, "_blank")}
-                disabled={!property.escrituraPdf}
-              >
-                Descargar
-              </Button>
-            </div>
-
-            {/* Acta de Entrega */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                <div>
-                  <h4 className="text-base font-semibold text-gray-900">
-                    Acta de Entrega
-                  </h4>
-                  {property.actaEntregaPdf ? (
-                    <p className="text-sm text-gray-500">
-                      {property.actaEntregaPdf.nombre}
-                      {property.actaEntregaPdf.fechaSubida &&
-                        ` - Subido el ${formatDate(
-                          property.actaEntregaPdf.fechaSubida
-                        )}`}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-amber-600">Pendiente de subir</p>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                className="text-[#008A4B] hover:text-[#006837]"
-                onClick={() =>
-                  window.open(property.actaEntregaPdf?.url, "_blank")
-                }
-                disabled={!property.actaEntregaPdf}
-              >
-                Descargar
-              </Button>
-            </div>
-
-            {/* Contrato de Arrendamiento - solo si la propiedad está arrendada */}
-            {property.ocupantes?.some(
-              (ocupante) => ocupante.tipoOcupante === "arrendatario"
-            ) && (
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                  <div>
-                    <h4 className="text-base font-semibold text-gray-900">
-                      Contrato de Arrendamiento
-                    </h4>
-                    {property.contratoArrendamientoPdf ? (
-                      <p className="text-sm text-gray-500">
-                        {property.contratoArrendamientoPdf.nombre}
-                        {property.contratoArrendamientoPdf.fechaSubida &&
-                          ` - Subido el ${formatDate(
-                            property.contratoArrendamientoPdf.fechaSubida
-                          )}`}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-amber-600">Pendiente de subir</p>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="text-[#008A4B] hover:text-[#006837]"
-                  onClick={() =>
-                    window.open(property.contratoArrendamientoPdf?.url, "_blank")
-                  }
-                  disabled={!property.contratoArrendamientoPdf}
-                >
-                  Descargar
-                </Button>
-              </div>
-            )}
           </div>
 
           {/* Documentos del Propietario */}
@@ -1330,27 +1516,28 @@ export default function PropertyDetailPage({
                   property.propietario.datosPersonaNatural) && (
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium">
-                        {(() => {
-                          const uploadedCount = getUploadedDocsCount(property);
-                          const requiredCount = getRequiredDocsCount(property);
-                          return `${uploadedCount}/${requiredCount}`;
-                        })()}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        documentos subidos
-                      </div>
+                      {getUploadedDocsCount(property) === getRequiredDocsCount(property) ? (
+                        <div className="flex items-center gap-2 text-[#008A4B]">
+                          <CheckmarkIcon />
+                          <span className="text-sm font-medium">Completo</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-sm font-medium">
+                            {`${getUploadedDocsCount(property)}/${getRequiredDocsCount(property)}`}
+                          </div>
+                          <div className="text-sm text-gray-500">documentos subidos</div>
+                        </>
+                      )}
                     </div>
                     <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#008A4B] transition-all duration-300"
-                        style={{
-                          width: `${
-                            (getUploadedDocsCount(property) /
-                              getRequiredDocsCount(property)) *
-                            100
-                          }%`,
+                      <motion.div
+                        className="h-full bg-[#008A4B]"
+                        initial={{ width: 0 }}
+                        animate={{ 
+                          width: `${(getUploadedDocsCount(property) / getRequiredDocsCount(property)) * 100}%` 
                         }}
+                        transition={{ duration: 0.5 }}
                       />
                     </div>
                   </div>
@@ -1443,7 +1630,7 @@ export default function PropertyDetailPage({
                               <p className="text-sm font-medium">
                                 {property.propietario.datosPersonaJuridica
                                   .empresaRepresentanteLegal
-                                  .rucEmpresaRepresentanteLegal.ruc || "-"}
+                                  .rucEmpresaRepresentanteLegal.map((rucDoc) => rucDoc.ruc).join(", ") || "-"}
                               </p>
                             </div>
 
@@ -1541,321 +1728,73 @@ export default function PropertyDetailPage({
               </div>
 
               {/* Listado de Documentos del Propietario */}
-              <div className="space-y-4">
+            <div className="space-y-4">
                 {property.propietario.datosPersonaJuridica && (
                   <>
                     {/* RUC */}
                     {property.propietario.datosPersonaJuridica.rucPersonaJuridica.map(
                       (rucDoc, index) => (
-                        <div
+                        <DocumentUploadButton
                           key={index}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                            <div>
-                              <h4 className="text-base font-semibold text-gray-900">
-                                RUC
-                              </h4>
-                              {rucDoc.rucPdf ? (
-                                <p className="text-sm text-gray-500">
-                                  {rucDoc.ruc}
-                                  {rucDoc.rucPdf.fechaSubida &&
-                                    ` - Subido el ${formatDate(
-                                      rucDoc.rucPdf.fechaSubida
-                                    )}`}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-amber-600">
-                                  Pendiente de subir
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            className="text-[#008A4B] hover:text-[#006837]"
-                            onClick={() =>
-                              window.open(rucDoc.rucPdf?.url, "_blank")
-                            }
-                            disabled={!rucDoc.rucPdf}
-                          >
-                            Descargar
-                          </Button>
-                        </div>
+                          documentType="RUC"
+                          propertyId={propertyId}
+                          onUploadComplete={(url: string, name: string) => 
+                            handleDocumentUpload(url, name, `datosPersonaJuridica.rucPersonaJuridica[${index}]`, "propietario")}
+                          currentDocument={rucDoc.rucPdf}
+                        />
                       )
                     )}
 
                     {/* Cédula del Representante Legal */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                        <div>
-                          <h4 className="text-base font-semibold text-gray-900">
-                            Cédula del Representante Legal
-                          </h4>
-                          {property.propietario.datosPersonaJuridica
-                            .cedulaRepresentanteLegalPdf ? (
-                            <p className="text-sm text-gray-500">
-                              {
-                                property.propietario.datosPersonaJuridica
-                                  .cedulaRepresentanteLegalPdf.nombre
-                              }
-                              {property.propietario.datosPersonaJuridica
-                                .cedulaRepresentanteLegalPdf.fechaSubida &&
-                                ` - Subido el ${formatDate(
-                                  property.propietario.datosPersonaJuridica
-                                    .cedulaRepresentanteLegalPdf.fechaSubida
-                                )}`}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-amber-600">
-                              Pendiente de subir
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="text-[#008A4B] hover:text-[#006837]"
-                        onClick={() =>
-                          window.open(
-                            property.propietario?.datosPersonaJuridica
-                              ?.cedulaRepresentanteLegalPdf?.url,
-                            "_blank"
-                          )
-                        }
-                        disabled={
-                          !property.propietario?.datosPersonaJuridica
-                            ?.cedulaRepresentanteLegalPdf
-                        }
-                      >
-                        Descargar
-                      </Button>
-                    </div>
+                    <DocumentUploadButton
+                      documentType="Cédula del representante legal"
+                      propertyId={propertyId}
+                      onUploadComplete={(url: string, name: string) => handleDocumentUpload(url, name, "datosPersonaJuridica.cedulaRepresentanteLegalPdf", "propietario")}
+                      currentDocument={property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf}
+                    />
 
                     {/* Nombramiento del Representante Legal */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                        <div>
-                          <h4 className="text-base font-semibold text-gray-900">
-                            Nombramiento del Representante Legal
-                          </h4>
-                          {property.propietario.datosPersonaJuridica
-                            .nombramientoRepresentanteLegalPdf ? (
-                            <p className="text-sm text-gray-500">
-                              {
-                                property.propietario.datosPersonaJuridica
-                                  .nombramientoRepresentanteLegalPdf.nombre
-                              }
-                              {property.propietario.datosPersonaJuridica
-                                .nombramientoRepresentanteLegalPdf.fechaSubida &&
-                                ` - Subido el ${formatDate(
-                                  property.propietario.datosPersonaJuridica
-                                    .nombramientoRepresentanteLegalPdf.fechaSubida
-                                )}`}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-amber-600">
-                              Pendiente de subir
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="text-[#008A4B] hover:text-[#006837]"
-                        onClick={() =>
-                          window.open(
-                            property.propietario?.datosPersonaJuridica
-                              ?.nombramientoRepresentanteLegalPdf?.url,
-                            "_blank"
-                          )
-                        }
-                        disabled={
-                          !property.propietario?.datosPersonaJuridica
-                            ?.nombramientoRepresentanteLegalPdf
-                        }
-                      >
-                        Descargar
-                      </Button>
-                    </div>
+                    <DocumentUploadButton
+                      documentType="Nombramiento del representante legal"
+                      propertyId={propertyId}
+                      onUploadComplete={(url: string, name: string) => handleDocumentUpload(url, name, "datosPersonaJuridica.nombramientoRepresentanteLegalPdf", "propietario")}
+                      currentDocument={property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf}
+                    />
 
-                    {/* Documentos adicionales cuando el representante legal es una empresa */}
-                    {property.propietario.datosPersonaJuridica
-                      .representanteLegalEsEmpresa &&
-                      property.propietario.datosPersonaJuridica
-                        .empresaRepresentanteLegal && (
-                        <>
-                          {/* Autorización de representación */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  Autorización de representación
-                                </h4>
-                                {property.propietario.datosPersonaJuridica
-                                  .empresaRepresentanteLegal
-                                  .autorizacionRepresentacionPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {
-                                      property.propietario.datosPersonaJuridica
-                                        .empresaRepresentanteLegal
-                                        .autorizacionRepresentacionPdf.nombre
-                                    }
-                                    {property.propietario.datosPersonaJuridica
-                                      .empresaRepresentanteLegal
-                                      .autorizacionRepresentacionPdf
-                                      .fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        property.propietario.datosPersonaJuridica
-                                          .empresaRepresentanteLegal
-                                          .autorizacionRepresentacionPdf
-                                          .fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  property?.propietario?.datosPersonaJuridica
-                                    ?.empresaRepresentanteLegal
-                                    ?.autorizacionRepresentacionPdf?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={
-                                !property?.propietario?.datosPersonaJuridica
-                                  ?.empresaRepresentanteLegal
-                                  ?.autorizacionRepresentacionPdf
-                              }
-                            >
-                              Descargar
-                            </Button>
-                          </div>
+                    {/* Documentos adicionales solo si el representante legal es empresa */}
+                    {property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa && (
+                      <>
+                        {/* Autorización de representación */}
+                        <DocumentUploadButton
+                          documentType="Autorización de representación"
+                          propertyId={propertyId}
+                          onUploadComplete={(url: string, name: string) => 
+                            handleDocumentUpload(url, name, "datosPersonaJuridica.empresaRepresentanteLegal.autorizacionRepresentacionPdf", "propietario")}
+                          currentDocument={property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf}
+                        />
 
-                          {/* Cédula del representante legal de la empresa */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  Cédula del representante legal de la empresa
-                                </h4>
-                                {property.propietario.datosPersonaJuridica
-                                  .empresaRepresentanteLegal
-                                  .cedulaRepresentanteLegalPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {
-                                      property.propietario.datosPersonaJuridica
-                                        .empresaRepresentanteLegal
-                                        .cedulaRepresentanteLegalPdf.nombre
-                                    }
-                                    {property.propietario.datosPersonaJuridica
-                                      .empresaRepresentanteLegal
-                                      .cedulaRepresentanteLegalPdf.fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        property.propietario.datosPersonaJuridica
-                                          .empresaRepresentanteLegal
-                                          .cedulaRepresentanteLegalPdf.fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  property?.propietario?.datosPersonaJuridica
-                                    ?.empresaRepresentanteLegal
-                                    ?.cedulaRepresentanteLegalPdf?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={
-                                !property?.propietario?.datosPersonaJuridica
-                                  ?.empresaRepresentanteLegal
-                                  ?.cedulaRepresentanteLegalPdf
-                              }
-                            >
-                              Descargar
-                            </Button>
-                          </div>
+                        {/* Cédula del representante legal de la empresa */}
+                        <DocumentUploadButton
+                          documentType="Cédula del representante legal de la empresa RL"
+                          propertyId={propertyId}
+                          onUploadComplete={(url: string, name: string) => 
+                            handleDocumentUpload(url, name, "datosPersonaJuridica.empresaRepresentanteLegal.cedulaRepresentanteLegalPdf", "propietario")}
+                          currentDocument={property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf}
+                        />
 
-                          {/* RUC de la empresa representante legal */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  RUC de la empresa representante legal
-                                </h4>
-                                {property.propietario.datosPersonaJuridica
-                                  .empresaRepresentanteLegal
-                                  .rucEmpresaRepresentanteLegal.rucPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {
-                                      property.propietario.datosPersonaJuridica
-                                        .empresaRepresentanteLegal
-                                        .rucEmpresaRepresentanteLegal.rucPdf
-                                        .nombre
-                                    }
-                                    {property.propietario.datosPersonaJuridica
-                                      .empresaRepresentanteLegal
-                                      .rucEmpresaRepresentanteLegal.rucPdf
-                                      .fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        property.propietario.datosPersonaJuridica
-                                          .empresaRepresentanteLegal
-                                          .rucEmpresaRepresentanteLegal.rucPdf
-                                          .fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  property?.propietario?.datosPersonaJuridica
-                                    ?.empresaRepresentanteLegal
-                                    ?.rucEmpresaRepresentanteLegal?.rucPdf?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={
-                                !property?.propietario?.datosPersonaJuridica
-                                  ?.empresaRepresentanteLegal
-                                  ?.rucEmpresaRepresentanteLegal?.rucPdf
-                              }
-                            >
-                              Descargar
-                            </Button>
-                          </div>
-                        </>
-                      )}
+                        {/* RUCs de la empresa representante legal */}
+                        {property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal.map((rucDoc, index) => (
+                          <DocumentUploadButton
+                            key={index}
+                            documentType={`RUC de la empresa representante legal ${index + 1}`}
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, `datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal[${index}]`, "propietario")}
+                            currentDocument={rucDoc.rucPdf}
+                          />
+                        ))}
+                      </>
+                    )}
                   </>
                 )}
 
@@ -1863,97 +1802,21 @@ export default function PropertyDetailPage({
                 {property.propietario.datosPersonaNatural && (
                   <>
                     {/* Cédula */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                        <div>
-                          <h4 className="text-base font-semibold text-gray-900">
-                            Cédula
-                          </h4>
-                          {property.propietario.datosPersonaNatural.cedulaPdf ? (
-                            <p className="text-sm text-gray-500">
-                              {
-                                property.propietario.datosPersonaNatural.cedulaPdf
-                                  .nombre
-                              }
-                              {property.propietario.datosPersonaNatural.cedulaPdf
-                                .fechaSubida &&
-                                ` - Subido el ${formatDate(
-                                  property.propietario.datosPersonaNatural
-                                    .cedulaPdf.fechaSubida
-                                )}`}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-amber-600">
-                              Pendiente de subir
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="text-[#008A4B] hover:text-[#006837]"
-                        onClick={() =>
-                          window.open(
-                            property.propietario?.datosPersonaNatural?.cedulaPdf
-                              ?.url,
-                            "_blank"
-                          )
-                        }
-                        disabled={
-                          !property.propietario?.datosPersonaNatural?.cedulaPdf
-                        }
-                      >
-                        Descargar
-                      </Button>
-                    </div>
+                    <DocumentUploadButton
+                      documentType="Cédula"
+                      propertyId={propertyId}
+                      onUploadComplete={(url: string, name: string) => handleDocumentUpload(url, name, "datosPersonaNatural.cedulaPdf", "propietario")}
+                      currentDocument={property.propietario.datosPersonaNatural.cedulaPdf}
+                    />
 
                     {/* RUC (si aplica) */}
                     {property.propietario.datosPersonaNatural.aplicaRuc && (
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                          <div>
-                            <h4 className="text-base font-semibold text-gray-900">
-                              RUC
-                            </h4>
-                            {property.propietario.datosPersonaNatural.rucPdf ? (
-                              <p className="text-sm text-gray-500">
-                                {
-                                  property.propietario.datosPersonaNatural.rucPdf
-                                    .nombre
-                                }
-                                {property.propietario.datosPersonaNatural.rucPdf
-                                  .fechaSubida &&
-                                  ` - Subido el ${formatDate(
-                                    property.propietario.datosPersonaNatural
-                                      .rucPdf.fechaSubida
-                                  )}`}
-                              </p>
-                            ) : (
-                              <p className="text-sm text-amber-600">
-                                Pendiente de subir
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          className="text-[#008A4B] hover:text-[#006837]"
-                          onClick={() =>
-                            window.open(
-                              property.propietario?.datosPersonaNatural?.rucPdf
-                                ?.url,
-                              "_blank"
-                            )
-                          }
-                          disabled={
-                            !property.propietario?.datosPersonaNatural?.rucPdf
-                          }
-                        >
-                          Descargar
-                        </Button>
-                      </div>
+                      <DocumentUploadButton
+                        documentType="RUC"
+                        propertyId={propertyId}
+                        onUploadComplete={(url: string, name: string) => handleDocumentUpload(url, name, "datosPersonaNatural.rucPdf", "propietario")}
+                        currentDocument={property.propietario.datosPersonaNatural.rucPdf}
+                      />
                     )}
                   </>
                 )}
@@ -1968,38 +1831,48 @@ export default function PropertyDetailPage({
             <h2 className="text-xl font-semibold mb-6">Ocupantes</h2>
             <div className="space-y-6">
               {property.ocupantes.map((ocupante, index) => {
-                // Determinar si es un ocupante externo o un propietario/arrendatario
-                const isExternalOccupant = ocupante.tipoOcupante === "externo";
+                // Si es propietario, solo mostrar mensaje
+                if (ocupante.tipoOcupante === 'propietario') {
+                  return (
+                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600">El ocupante de esta propiedad es el propietario</p>
+                    </div>
+                  );
+                }
 
-                // Obtener los datos según el tipo de ocupante
-                const datosPersonaJuridica = isExternalOccupant
-                  ? ocupante.datosPersonaJuridica
-                  : ocupante.perfilCliente?.datosPersonaJuridica;
+                // Determinar la fuente de datos según el tipo de ocupante
+                const datosPersonaJuridica = ocupante.tipoOcupante === 'arrendatario' 
+                  ? ocupante.perfilCliente?.datosPersonaJuridica 
+                  : ocupante.datosPersonaJuridica;
 
-                const datosPersonaNatural = isExternalOccupant
-                  ? ocupante.datosPersonaNatural
-                  : ocupante.perfilCliente?.datosPersonaNatural;
+                const datosPersonaNatural = ocupante.tipoOcupante === 'arrendatario'
+                  ? ocupante.perfilCliente?.datosPersonaNatural
+                  : ocupante.datosPersonaNatural;
 
                 // Calcular documentos requeridos y subidos
                 const getDocumentCounts = () => {
                   if (datosPersonaJuridica) {
-                    const requiredDocs = 3; // RUC, cédula y nombramiento
+                    const requiredDocs = datosPersonaJuridica.representanteLegalEsEmpresa ? 6 : 3;
                     const uploadedDocs = [
                       ...(datosPersonaJuridica.rucPersonaJuridica?.map(
                         (rucDoc) => rucDoc.rucPdf
                       ) || []),
                       datosPersonaJuridica.cedulaRepresentanteLegalPdf,
                       datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                      ...(datosPersonaJuridica.representanteLegalEsEmpresa ? [
+                        datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                        datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                        ...(datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
+                          (rucDoc) => rucDoc.rucPdf
+                        ) || [])
+                      ] : [])
                     ].filter(Boolean).length;
                     return { requiredDocs, uploadedDocs };
                   } else if (datosPersonaNatural) {
-                    const requiredDocs =
-                      1 + (datosPersonaNatural.aplicaRuc ? 1 : 0);
+                    const requiredDocs = 1 + (datosPersonaNatural.aplicaRuc ? 1 : 0);
                     const uploadedDocs = [
                       datosPersonaNatural.cedulaPdf,
-                      ...(datosPersonaNatural.aplicaRuc
-                        ? [datosPersonaNatural.rucPdf]
-                        : []),
+                      ...(datosPersonaNatural.aplicaRuc ? [datosPersonaNatural.rucPdf] : [])
                     ].filter(Boolean).length;
                     return { requiredDocs, uploadedDocs };
                   }
@@ -2009,12 +1882,9 @@ export default function PropertyDetailPage({
                 const { requiredDocs, uploadedDocs } = getDocumentCounts();
 
                 return (
-                  <div
-                    key={index}
-                    className="border-t pt-4 first:border-t-0 first:pt-0"
-                  >
+                  <div key={index} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <div>
+          <div>
                         <h3 className="text-lg font-medium">
                           {ocupante.tipoOcupante.charAt(0).toUpperCase() +
                             ocupante.tipoOcupante.slice(1)}
@@ -2027,24 +1897,35 @@ export default function PropertyDetailPage({
                               datosPersonaNatural?.razonSocial}
                           </p>
                         )}
-                      </div>
+          </div>
                       {/* Progress Indicator for Occupant Documents */}
                       {requiredDocs > 0 && (
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium">
-                              {`${uploadedDocs}/${requiredDocs}`}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              documentos subidos
-                            </div>
+                            {uploadedDocs === requiredDocs ? (
+                              <div className="flex items-center gap-2 text-[#008A4B]">
+                                <CheckmarkIcon />
+                                <span className="text-sm font-medium">Completo</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-sm font-medium">
+                                  {`${uploadedDocs}/${requiredDocs}`}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  documentos subidos
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-[#008A4B] transition-all duration-300"
-                              style={{
-                                width: `${(uploadedDocs / requiredDocs) * 100}%`,
+                            <motion.div
+                              className="h-full bg-[#008A4B]"
+                              initial={{ width: 0 }}
+                              animate={{ 
+                                width: `${(uploadedDocs / requiredDocs) * 100}%` 
                               }}
+                              transition={{ duration: 0.5 }}
                             />
                           </div>
                         </div>
@@ -2317,219 +2198,87 @@ export default function PropertyDetailPage({
                           {/* RUC */}
                           {datosPersonaJuridica.rucPersonaJuridica.map(
                             (rucDoc, index) => (
-                              <div
+                              <DocumentUploadButton
                                 key={index}
-                                className="flex items-center justify-between p-4 border rounded-lg"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                                  <div>
-                                    <h4 className="text-base font-semibold text-gray-900">
-                                      RUC
-                                    </h4>
-                                    {rucDoc.rucPdf ? (
-                                      <p className="text-sm text-gray-500">
-                                        {rucDoc.ruc}
-                                        {rucDoc.rucPdf.fechaSubida &&
-                                          ` - Subido el ${formatDate(
-                                            rucDoc.rucPdf.fechaSubida
-                                          )}`}
-                                      </p>
-                                    ) : (
-                                      <p className="text-sm text-amber-600">
-                                        Pendiente de subir
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  className="text-[#008A4B] hover:text-[#006837]"
-                                  onClick={() =>
-                                    window.open(rucDoc.rucPdf?.url, "_blank")
-                                  }
-                                  disabled={!rucDoc.rucPdf}
-                                >
-                                  Descargar
-                                </Button>
-                              </div>
+                                documentType="RUC"
+                                propertyId={propertyId}
+                                onUploadComplete={(url: string, name: string) => 
+                                  handleDocumentUpload(url, name, `datosPersonaJuridica.rucPersonaJuridica[${index}]`, "ocupante", ocupante)}
+                                currentDocument={rucDoc.rucPdf}
+                              />
                             )
                           )}
 
                           {/* Cédula del Representante Legal */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  Cédula del representante legal
-                                </h4>
-                                {datosPersonaJuridica.cedulaRepresentanteLegalPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {
-                                      datosPersonaJuridica
-                                        .cedulaRepresentanteLegalPdf.nombre
-                                    }
-                                    {datosPersonaJuridica
-                                      .cedulaRepresentanteLegalPdf.fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        datosPersonaJuridica
-                                          .cedulaRepresentanteLegalPdf.fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  datosPersonaJuridica.cedulaRepresentanteLegalPdf
-                                    ?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={
-                                !datosPersonaJuridica.cedulaRepresentanteLegalPdf
-                              }
-                            >
-                              Descargar
-                            </Button>
-                          </div>
+                          <DocumentUploadButton
+                            documentType="Cédula del representante legal"
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, "datosPersonaJuridica.cedulaRepresentanteLegalPdf", "ocupante", ocupante)}
+                            currentDocument={datosPersonaJuridica.cedulaRepresentanteLegalPdf}
+                          />
 
                           {/* Nombramiento del Representante Legal */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  Nombramiento del representante legal
-                                </h4>
-                                {datosPersonaJuridica.nombramientoRepresentanteLegalPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {
-                                      datosPersonaJuridica
-                                        .nombramientoRepresentanteLegalPdf.nombre
-                                    }
-                                    {datosPersonaJuridica
-                                      .nombramientoRepresentanteLegalPdf
-                                      .fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        datosPersonaJuridica
-                                          .nombramientoRepresentanteLegalPdf
-                                          .fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  datosPersonaJuridica
-                                    .nombramientoRepresentanteLegalPdf?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={
-                                !datosPersonaJuridica.nombramientoRepresentanteLegalPdf
-                              }
-                            >
-                              Descargar
-                            </Button>
-                          </div>
+                          <DocumentUploadButton
+                            documentType="Nombramiento del representante legal"
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, "datosPersonaJuridica.nombramientoRepresentanteLegalPdf", "ocupante", ocupante)}
+                            currentDocument={datosPersonaJuridica.nombramientoRepresentanteLegalPdf}
+                          />
+
+                          {/* Autorización de representación */}
+                          <DocumentUploadButton
+                            documentType="Autorización de representación"
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, "datosPersonaJuridica.empresaRepresentanteLegal.autorizacionRepresentacionPdf", "ocupante", ocupante)}
+                            currentDocument={datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf}
+                          />
+
+                          {/* Cédula del representante legal de la empresa */}
+                          <DocumentUploadButton
+                            documentType="Cédula del representante legal de la empresa RL"
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, "datosPersonaJuridica.empresaRepresentanteLegal.cedulaRepresentanteLegalPdf", "ocupante", ocupante)}
+                            currentDocument={datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf}
+                          />
+
+                          {/* RUCs de la empresa representante legal */}
+                          {datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal.map((rucDoc, index) => (
+                            <DocumentUploadButton
+                              key={index}
+                              documentType={`RUC de la empresa representante legal ${index + 1}`}
+                              propertyId={propertyId}
+                              onUploadComplete={(url: string, name: string) => 
+                                handleDocumentUpload(url, name, `datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal[${index}]`, "ocupante", ocupante)}
+                              currentDocument={rucDoc.rucPdf}
+                            />
+                          ))}
                         </>
                       )}
 
                       {datosPersonaNatural && (
                         <>
                           {/* Cédula */}
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                              <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                  Cédula de identidad
-                                </h4>
-                                {datosPersonaNatural.cedulaPdf ? (
-                                  <p className="text-sm text-gray-500">
-                                    {datosPersonaNatural.cedulaPdf.nombre}
-                                    {datosPersonaNatural.cedulaPdf.fechaSubida &&
-                                      ` - Subido el ${formatDate(
-                                        datosPersonaNatural.cedulaPdf.fechaSubida
-                                      )}`}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-amber-600">
-                                    Pendiente de subir
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-[#008A4B] hover:text-[#006837]"
-                              onClick={() =>
-                                window.open(
-                                  datosPersonaNatural.cedulaPdf?.url,
-                                  "_blank"
-                                )
-                              }
-                              disabled={!datosPersonaNatural.cedulaPdf}
-                            >
-                              Descargar
-                            </Button>
-                          </div>
+                          <DocumentUploadButton
+                            documentType="Cédula"
+                            propertyId={propertyId}
+                            onUploadComplete={(url: string, name: string) => 
+                              handleDocumentUpload(url, name, "datosPersonaNatural.cedulaPdf", "ocupante", ocupante)}
+                            currentDocument={datosPersonaNatural.cedulaPdf}
+                          />
 
                           {/* RUC (si aplica) */}
                           {datosPersonaNatural.aplicaRuc && (
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <DocumentArrowDownIcon className="w-6 h-6 text-gray-500" />
-                                <div>
-                                  <h4 className="text-base font-semibold text-gray-900">
-                                    RUC
-                                  </h4>
-                                  {datosPersonaNatural.rucPdf ? (
-                                    <p className="text-sm text-gray-500">
-                                      {datosPersonaNatural.rucPdf.nombre}
-                                      {datosPersonaNatural.rucPdf.fechaSubida &&
-                                        ` - Subido el ${formatDate(
-                                          datosPersonaNatural.rucPdf.fechaSubida
-                                        )}`}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-amber-600">
-                                      Pendiente de subir
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                className="text-[#008A4B] hover:text-[#006837]"
-                                onClick={() =>
-                                  window.open(
-                                    datosPersonaNatural.rucPdf?.url,
-                                    "_blank"
-                                  )
-                                }
-                                disabled={!datosPersonaNatural.rucPdf}
-                              >
-                                Descargar
-                              </Button>
-                            </div>
+                            <DocumentUploadButton
+                              documentType="RUC"
+                              propertyId={propertyId}
+                              onUploadComplete={(url: string, name: string) => 
+                                handleDocumentUpload(url, name, "datosPersonaNatural.rucPdf", "ocupante", ocupante)}
+                              currentDocument={datosPersonaNatural.rucPdf}
+                            />
                           )}
                         </>
                       )}
@@ -2557,9 +2306,9 @@ export default function PropertyDetailPage({
                 </p>
               </div>
             ))}
-          </div>
         </div>
+      </div>
       )}
     </motion.div>
   );
-}
+} 
