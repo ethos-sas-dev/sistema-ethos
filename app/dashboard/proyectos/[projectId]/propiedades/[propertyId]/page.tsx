@@ -303,7 +303,6 @@ const GET_PROPERTY_DETAILS = gql`
         trampasGrasa {
           estado
           descripcion
-          capacidad
           tipo
           ubicacionInterna
           fechaInstalacion
@@ -646,12 +645,15 @@ const CheckmarkIcon = () => (
   </motion.svg>
 );
 
-export default function PropertyDetailPage({ 
-  params,
-}: {
+// Añadir un nuevo prop para la ruta de retorno
+interface PageProps {
   params: Promise<{ projectId: string; propertyId: string }>;
-}) {
+  searchParams: Promise<{ from?: string }>;
+}
+
+export default function PropertyDetailPage({ params, searchParams }: PageProps) {
   const { projectId, propertyId } = use(params);
+  const { from } = use(searchParams);
   const { role } = useAuth();
   const router = useRouter();
 
@@ -875,7 +877,7 @@ export default function PropertyDetailPage({
       <div className="bg-white rounded-xl border overflow-hidden">
         <div className="relative h-64">
           <Link
-            href={`/dashboard/proyectos/${projectId}`}
+            href={from === 'propietarios' ? '/dashboard/propietarios' : `/dashboard/proyectos/${projectId}`}
             className="absolute top-6 left-6 z-10"
           >
             <Button

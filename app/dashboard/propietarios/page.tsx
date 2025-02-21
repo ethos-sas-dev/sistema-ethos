@@ -20,7 +20,7 @@ import { gql, useQuery } from '@apollo/client'
 // Consulta para obtener todas las propiedades (Directorio)
 const GET_ALL_PROPERTIES = gql`
   query GetAllProperties {
-    propiedades {
+    propiedades(pagination: { limit: -1 }) {
       data {
         id
         documentId
@@ -122,7 +122,7 @@ const GET_ALL_PROPERTIES = gql`
 const GET_PROPERTIES_BY_PROJECT = gql`
   query GetPropertiesByProject($projectId: ID!) {
     proyecto(documentId: $projectId) {
-      propiedades {
+      propiedades(pagination: { limit: -1 }) {
         documentId
         identificadores {
           idSuperior
@@ -545,7 +545,7 @@ export default function OccupantsPage() {
                       <Button 
                         variant="ghost" 
                         className="text-[#008A4B] hover:text-[#006837]"
-                        onClick={() => router.push(`/dashboard/proyectos/${property.proyecto?.documentId}/propiedades/${property.documentId}`)}
+                        onClick={() => router.push(`/dashboard/proyectos/${property.proyecto?.documentId}/propiedades/${property.documentId}?from=propietarios`)}
                       >
                         Ver detalles
                       </Button>

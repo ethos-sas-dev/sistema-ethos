@@ -38,7 +38,7 @@ const GET_PROJECT_DETAILS = gql`
       fotoProyecto {
         url
       }
-      propiedades {
+      propiedades(pagination: { limit: -1 }) {
         documentId
         identificadores {
           idSuperior
@@ -62,7 +62,6 @@ const GET_PROJECT_DETAILS = gql`
           tipoOcupante
         }
       }
-
       createdAt
       updatedAt
       publishedAt
@@ -172,7 +171,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
     fotoProyecto: data?.proyecto?.fotoProyecto,
     propiedades: data?.proyecto?.propiedades || []
   };
-
+  console.log(project);
   const getProjectStats = (properties: Property[]) => {
     return {
       total: properties.length,
