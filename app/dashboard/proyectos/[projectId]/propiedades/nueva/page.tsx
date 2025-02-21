@@ -35,12 +35,13 @@ const projects: Project[] = [
   }
 ]
 
-export default function NewPropertyPage({ 
+export default async function NewPropertyPage({ 
   params 
 }: { 
-  params: { projectId: string } 
+  params: Promise<{ projectId: string }> 
 }) {
-  const { projectId } = params
+  const resolvedParams = await params
+  const { projectId } = resolvedParams
   const router = useRouter()
   const { role } = useAuth()
   const [images, setImages] = useState<string[]>([])
@@ -52,7 +53,7 @@ export default function NewPropertyPage({
   const [selectedProject, setSelectedProject] = useState('')
 
   // Solo admin y directorio pueden acceder a esta página
-  if (role !== 'administrador' && role !== 'directorio') {
+  if (role !== 'Administrador' && role !== 'Directorio') {
     router.push('/dashboard')
     return null
   }

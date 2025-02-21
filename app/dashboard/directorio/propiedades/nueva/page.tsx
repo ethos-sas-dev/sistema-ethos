@@ -42,7 +42,7 @@ export default function NewPropertyPage() {
   const [ownerEmail, setOwnerEmail] = useState('')
 
   // Solo admin y directorio pueden acceder a esta página
-  if (role !== 'administrador' && role !== 'directorio') {
+  if (role !== 'Administrador' && role !== 'Directorio') {
     router.push('/dashboard')
     return null
   }

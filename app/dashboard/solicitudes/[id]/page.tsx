@@ -37,7 +37,13 @@ const requestDetail = {
   ]
 }
 
-export default function RequestDetailPage({ params }: { params: { id: string } }) {
+export default async function RequestDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const resolvedParams = await params
+  const { id } = resolvedParams
   const router = useRouter()
 
   return (
@@ -61,7 +67,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
               Detalles de Solicitud
             </h1>
             <p className="text-gray-500 mt-1">
-              ID: {params.id}
+              ID: {id}
             </p>
           </div>
         </div>

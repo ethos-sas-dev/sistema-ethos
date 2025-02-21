@@ -62,7 +62,7 @@ export default function AliquotDetailsPage({
   const { role } = useAuth()
 
   // Restringir acceso solo a admin, directorio y jefe operativo
-  if (role === 'propietario' || role === 'arrendatario') {
+  if (role === 'Propietario' || role === 'Arrendatario') {
     router.push('/dashboard')
     return null
   }

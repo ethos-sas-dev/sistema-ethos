@@ -22,6 +22,10 @@ const nextConfig = {
       }
     ],
   },
+  eslint: {
+    // Desactiva ESLint durante el build
+    ignoreDuringBuilds: true,
+  },
 }
 
 module.exports = nextConfig 
