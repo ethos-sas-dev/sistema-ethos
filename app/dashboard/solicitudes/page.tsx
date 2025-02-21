@@ -18,115 +18,16 @@ import { useState } from 'react'
 
 // Datos de ejemplo - esto vendría de tu API
 const requestsData = {
-  administrador: [
-    {
-      id: "A001",
-      type: "Renta",
-      estado: "Certificado de Expensas Pendiente",
-      siguienteAccion: "Subir certificado expensas",
-      propiedad: {
-        name: "Bodega 01",
-        lot: "Lote 2"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "A003",
-      type: "Documento",
-      estado: "Pendiente Revisión",
-      siguienteAccion: "Revisar documento",
-      propiedad: {
-        name: "Bodega 02",
-        lot: "Lote 2"
-      },
-      propietario: "Rosario Diaz"
-    }
-  ],
-  propietario: [
-    {
-      id: "A001",
-      type: "Renta",
-      estado: "Pendiente Certificado Expensas",
-      siguienteAccion: "En espera de Admin",
-      propiedad: {
-        name: "Bodega 01",
-        lot: "Lote 2"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "A003",
-      type: "Venta",
-      estado: "Certificado de Expensas Rechazado",
-      siguienteAccion: "Solicitar plan de pagos",
-      propiedad: {
-        name: "Bodega 02",
-        lot: "Lote 7"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "A004",
-      type: "Venta",
-      estado: "Plan de Pago Aprobado",
-      siguienteAccion: "Subir acuerdo compraventa",
-      propiedad: {
-        name: "Bodega 03",
-        lot: "Lote 4"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "A006",
-      type: "Venta",
-      estado: "Plan de Pago Solicitado para Discusión",
-      siguienteAccion: "En espera de Admin",
-      propiedad: {
-        name: "Bodega 05",
-        lot: "Lote 11"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "A006",
-      type: "Venta",
-      estado: "Acuerdo de Plan de pago Confirmado",
-      siguienteAccion: "Subir documentación del plan acordado",
-      propiedad: {
-        name: "Bodega 10",
-        lot: "Lote 6"
-      },
-      propietario: "Manuel Jimenez"
-    }
-  ],
-  arrendatario: [
-    {
-      id: "R001",
-      type: "Mantenimiento",
-      estado: "Pendiente Revisión",
-      siguienteAccion: "En espera de Admin",
-      propiedad: {
-        name: "Bodega 01",
-        lot: "Lote 2"
-      },
-      propietario: "Manuel Jimenez"
-    },
-    {
-      id: "R002",
-      type: "Documento",
-      estado: "Documentación Incompleta",
-      siguienteAccion: "Subir documentos faltantes",
-      propiedad: {
-        name: "Bodega 01",
-        lot: "Lote 2"
-      },
-      propietario: "Manuel Jimenez"
-    }
-  ]
+  administrador: [],
+  propietario: [],
+  arrendatario: []
 }
 
+// Definir el tipo exacto
+type UserRole = 'administrador' | 'directorio' | 'propietario' | 'arrendatario' | 'jefeOperativo' | null;
+
 export default function RequestsPage() {
-  const { role } = useAuth()
+  const { role } = useAuth() as { role: UserRole }
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProperty, setSelectedProperty] = useState("Todas")
@@ -278,54 +179,12 @@ export default function RequestsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {currentRequests.map((request) => (
-              <tr key={request.id} className="hover:bg-gray-50">
-                <td className="px-4 py-4 text-sm font-medium text-gray-900">
-                  {request.id}
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-500">
-                  {request.type}
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-500">
-                  {request.estado}
-                </td>
-                <td className="px-4 py-4">
-                  {request.siguienteAccion === 'En espera de Admin' ? (
-                    <span className="text-sm text-gray-500">{request.siguienteAccion}</span>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="text-[#008A4B] hover:bg-[#008A4B] hover:text-white border-[#008A4B]"
-                      onClick={() => handleAction(request)}
-                    >
-                      {request.siguienteAccion}
-                    </Button>
-                  )}
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-500">
-                  <div>
-                    {request.propiedad.name}
-                    <div className="text-xs text-gray-400">{request.propiedad.lot}</div>
-                  </div>
-                </td>
-                {(role === 'administrador' || role === 'directorio') && (
-                  <td className="px-4 py-4 text-sm text-gray-500">
-                    {request.propietario}
-                  </td>
-                )}
-                <td className="px-4 py-4 text-right text-sm font-medium">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => router.push(`/dashboard/solicitudes/${request.id}`)}
-                    className="text-[#008A4B] hover:text-[#006837]"
-                  >
-                    Ver solicitud
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+              No tienes solicitudes pendientes <br />
+              (Estás vienen del arrendatario y/o propietario).
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

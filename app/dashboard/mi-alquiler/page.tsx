@@ -29,12 +29,12 @@ export default function MiAlquilerPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (role !== "arrendatario") {
+    if (role !== 'Arrendatario') {
       router.push("/dashboard")
     }
   }, [role, router])
 
-  if (role !== "arrendatario") return null
+  if (role !== 'Arrendatario') return null
 
   return (
     <div>

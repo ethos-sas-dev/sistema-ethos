@@ -7,10 +7,12 @@ import {
   BuildingOffice2Icon,
   MapPinIcon,
   UserGroupIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  PlusIcon
 } from "@heroicons/react/24/outline"
 import { Button } from "../../_components/ui/button"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 // Datos de ejemplo - esto vendría de tu API
 const projects = [
@@ -47,6 +49,8 @@ const projects = [
 ]
 
 export default function ProjectsPage() {
+  const router = useRouter()
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -59,7 +63,8 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Proyectos Asignados</h1>
           <p className="text-gray-500 mt-1">Gestiona y supervisa tus proyectos asignados</p>
         </div>
-        <Button className="bg-[#008A4B] hover:bg-[#006837]">
+        <Button className="bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2" onClick={() => router.push('/dashboard/proyectos/nuevo')}>
+          <PlusIcon className="w-4 h-4" />
           Nuevo Proyecto
         </Button>
       </div>

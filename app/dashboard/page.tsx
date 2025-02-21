@@ -71,13 +71,13 @@ const quickActions: Record<UserRole, Array<{
       href: "/dashboard/solicitudes",
       icon: ClipboardDocumentListIcon
     },
-    {
-      title: "Reportes",
-      description: "Accede a los reportes que has creado",
-      actionLabel: "Ver reportes",
-      href: "/dashboard/reportes",
-      icon: ChartBarIcon
-    }
+    // {
+    //   title: "Reportes",
+    //   description: "Accede a los reportes que has creado",
+    //   actionLabel: "Ver reportes",
+    //   href: "/dashboard/reportes",
+    //   icon: ChartBarIcon
+    // }
   ],
   'Directorio': [
     {
@@ -94,13 +94,13 @@ const quickActions: Record<UserRole, Array<{
       href: "/dashboard/solicitudes",
       icon: ClipboardDocumentListIcon
     },
-    {
-      title: "Reportes",
-      description: "Accede a los reportes que has creado",
-      actionLabel: "Ver reportes",
-      href: "/dashboard/reportes",
-      icon: ChartBarIcon
-    }
+    // {
+    //   title: "Reportes",
+    //   description: "Accede a los reportes que has creado",
+    //   actionLabel: "Ver reportes",
+    //   href: "/dashboard/reportes",
+    //   icon: ChartBarIcon
+    // }
   ],
   'Propietario': [
     {

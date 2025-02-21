@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "../../../../../_components/ui/button";
+import { formatNumber } from "../../../../../_lib/utils";
 import {
   ArrowLeftIcon,
   DocumentArrowDownIcon,
@@ -921,7 +922,7 @@ export default function PropertyDetailPage({
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium bg-white/20 backdrop-blur-sm`}
                 >
-                  {property.areaTotal} m²
+                  {formatNumber(property.areaTotal, false)} m²
                 </span>
           </div>
         </div>
@@ -1089,7 +1090,7 @@ export default function PropertyDetailPage({
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Capacidad:</span>
-                        <span className="font-medium">{trampa.capacidad} litros</span>
+                        <span className="font-medium">{formatNumber(trampa.capacidad)} litros</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Tipo:</span>
@@ -1163,7 +1164,7 @@ export default function PropertyDetailPage({
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Costo:</span>
-                      <span className="font-medium">${adecuacion?.costo?.toFixed(2)}</span>
+                      <span className="font-medium">${formatNumber(adecuacion?.costo)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Tipo:</span>
@@ -1218,7 +1219,7 @@ export default function PropertyDetailPage({
               <div className="col-span-2 bg-gray-50 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-500">Área Total</h3>
                 <p className="mt-1 text-2xl font-light">
-                  {property.areaTotal} m²
+                  {formatNumber(property.areaTotal, false)} m²
                 </p>
               </div>
 
@@ -1229,7 +1230,7 @@ export default function PropertyDetailPage({
                     <h3 className="text-sm font-medium text-gray-500">
                       {area.nombreAdicional || area.tipoDeArea}
                     </h3>
-                    <p className="mt-1 text-xl font-light">{area.area} m²</p>
+                    <p className="mt-1 text-xl font-light">{formatNumber(area.area, false)} m²</p>
                     {area.tieneTasaAlicuotaOrdinariaEspecial && (
                       <p className="mt-1 text-xs text-gray-500">
                         Tasa especial: {area.tasaAlicuotaOrdinariaEspecial}%
@@ -1253,7 +1254,7 @@ export default function PropertyDetailPage({
                     : "Fondo Inicial"}
                 </h3>
                 <p className="mt-1 text-lg font-light">
-                  ${property.montoFondoInicial.toFixed(2)}
+                  ${formatNumber(property.montoFondoInicial)}
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
@@ -1261,7 +1262,7 @@ export default function PropertyDetailPage({
                   Alícuota Ordinaria
                 </h3>
                 <p className="mt-1 text-lg font-light">
-                  ${property.montoAlicuotaOrdinaria.toFixed(2)}
+                  ${formatNumber(property.montoAlicuotaOrdinaria)}
                 </p>
               </div>
               {property.pagos && (

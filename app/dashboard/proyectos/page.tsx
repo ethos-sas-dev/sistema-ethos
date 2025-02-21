@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "../../_lib/auth/AuthContext"
 import { gql, useQuery } from '@apollo/client'
 import Image from "next/image"
+import { Button } from "@/_components/ui/button"
+import { PlusIcon } from "@heroicons/react/24/outline"
 
 // Consulta para obtener todos los proyectos (Directorio)
 const GET_ALL_PROJECTS = gql`
@@ -159,12 +161,10 @@ export default function ProyectosPage() {
         
         {/* Aquí puedes agregar botones de acción según el rol */}
         {(role === 'Administrador' || role === 'Directorio') && (
-          <button
-            onClick={() => router.push('/dashboard/proyectos/nuevo')}
-            className="bg-[#008A4B] text-white px-4 py-2 rounded-lg hover:bg-[#006837] transition-colors"
-          >
-            Nuevo Proyecto
-          </button>
+        <Button className="bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2" onClick={() => router.push('/dashboard/proyectos/nuevo')}>
+          <PlusIcon className="w-4 h-4" />
+          Nuevo Proyecto
+        </Button>
         )}
       </div>
 
@@ -182,6 +182,11 @@ export default function ProyectosPage() {
                   fill
                   className="object-cover"
                 />
+                {project.unidadNegocio && (
+                  <span className="absolute top-4 right-4 px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-700 text-xs rounded-full">
+                    {project.unidadNegocio.nombre}
+                  </span>
+                )}
               </div>
             )}
             <div className="p-6">
@@ -191,12 +196,7 @@ export default function ProyectosPage() {
               <p className="text-sm text-gray-500 mt-1">
                 {project.ubicacion}
               </p>
-              {project.unidadNegocio && (
-                <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                  {project.unidadNegocio.nombre}
-                </span>
-              )}
-              <p className="mt-4 text-sm text-gray-600 line-clamp-2">
+              <p className="mt-4 text-sm text-gray-600 line-clamp-3">
                 {project.descripcion}
               </p>
               {(role === 'Administrador' || role === 'Directorio') && project.perfilOperacional?.usuario && (

@@ -406,7 +406,7 @@ export default function OccupantsPage() {
           <p className="text-gray-500 mt-1">
             {role === "Directorio" 
               ? "Todas las propiedades" 
-              : `Propiedades de ${user?.perfil_operacional?.proyectosAsignados?.[0]?.nombre || ''}`}
+              : `Propiedades de ${user?.perfil_operacional?.proyectosAsignados?.slice(0,5).map(p => p.nombre).join(', ')}${(user?.perfil_operacional?.proyectosAsignados?.length ?? 0) > 5 ? '...' : ''}`}
           </p>
         </div>
         <Button 
@@ -475,75 +475,85 @@ export default function OccupantsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredProperties.map((property) => {
-              const ocupanteInfo = property.ocupantes?.[0] ? getOccupantName(property.ocupantes[0]) : null;
-              
-              return (
-                <tr key={property.documentId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="space-y-2">
-                      {property.ocupantes && property.ocupantes.length > 0 ? (
-                        property.ocupantes.map((ocupante, index) => {
-                          const ocupanteInfo = getOccupantName(ocupante);
-                          if (!ocupanteInfo) return null;
-                          
-                          return (
-                            <div key={index} className="flex flex-col">
-                              <div className="text-sm font-medium text-gray-900">
-                                {ocupanteInfo.nombre}
+            {filteredProperties.length === 0 ? (
+              <tr>
+                <td colSpan={role === "Directorio" ? 6 : 5} className="px-6 py-10 text-center text-gray-500">
+                  <BuildingOffice2Icon className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm font-medium">No hay propietarios ni ocupantes registrados</p>
+                  <p className="mt-1 text-sm">en {user?.perfil_operacional?.proyectosAsignados?.slice(0,5).map(p => p.nombre).join(', ')}{(user?.perfil_operacional?.proyectosAsignados?.length ?? 0) > 5 ? '...' : ''} </p>
+                </td>
+              </tr>
+            ) : (
+              filteredProperties.map((property) => {
+                const ocupanteInfo = property.ocupantes?.[0] ? getOccupantName(property.ocupantes[0]) : null;
+                
+                return (
+                  <tr key={property.documentId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        {property.ocupantes && property.ocupantes.length > 0 ? (
+                          property.ocupantes.map((ocupante, index) => {
+                            const ocupanteInfo = getOccupantName(ocupante);
+                            if (!ocupanteInfo) return null;
+                            
+                            return (
+                              <div key={index} className="flex flex-col">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {ocupanteInfo.nombre}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {ocupanteInfo.tipo}
+                                </div>
+                                {index < property.ocupantes!.length - 1 && (
+                                  <div className="my-2 border-t border-gray-200"></div>
+                                )}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {ocupanteInfo.tipo}
-                              </div>
-                              {index < property.ocupantes!.length - 1 && (
-                                <div className="my-2 border-t border-gray-200"></div>
-                              )}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-sm text-gray-500">Sin ocupantes</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {property.propietario?.datosPersonaNatural?.razonSocial || property.propietario?.datosPersonaJuridica?.razonSocial || 'Sin propietario registrado'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">{property.estadoUso === "enUso" ? "En uso" : "Disponible"}</div>
-                      <div className="text-sm text-gray-500">{property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") ? "Arrendado" : "Uso propietario"}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">
-                        {property.identificadores.superior} {property.identificadores.idSuperior}
+                            );
+                          })
+                        ) : (
+                          <div className="text-sm text-gray-500">Sin ocupantes</div>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {property.identificadores.inferior} {property.identificadores.idInferior}
-                      </div>
-                    </div>
-                  </td>
-                  {role === "Directorio" && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{property.proyecto?.nombre}</div>
                     </td>
-                  )}
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                    <Button 
-                      variant="ghost" 
-                      className="text-[#008A4B] hover:text-[#006837]"
-                      onClick={() => router.push(`/dashboard/proyectos/${property.proyecto?.documentId}/propiedades/${property.documentId}`)}
-                    >
-                      Ver detalles
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {property.propietario?.datosPersonaNatural?.razonSocial || property.propietario?.datosPersonaJuridica?.razonSocial || 'Sin propietario registrado'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm text-gray-900">{property.estadoUso === "enUso" ? "En uso" : "Disponible"}</div>
+                        <div className="text-sm text-gray-500">{property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") ? "Arrendado" : "Uso propietario"}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm text-gray-900">
+                          {property.identificadores.superior} {property.identificadores.idSuperior}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {property.identificadores.inferior} {property.identificadores.idInferior}
+                        </div>
+                      </div>
+                    </td>
+                    {role === "Directorio" && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{property.proyecto?.nombre}</div>
+                      </td>
+                    )}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Button 
+                        variant="ghost" 
+                        className="text-[#008A4B] hover:text-[#006837]"
+                        onClick={() => router.push(`/dashboard/proyectos/${property.proyecto?.documentId}/propiedades/${property.documentId}`)}
+                      >
+                        Ver detalles
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

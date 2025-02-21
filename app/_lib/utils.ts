@@ -14,6 +14,13 @@ export function formatDate(input: string | number): string {
   })
 }
 
+export function formatNumber(value: number, showDecimals: boolean = true): string {
+  return new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: showDecimals ? 2 : 0,
+    maximumFractionDigits: showDecimals ? 2 : 0,
+  }).format(value)
+}
+
 export function absoluteUrl(path: string) {
   return `${process.env.NEXT_PUBLIC_APP_URL}${path}`
 }

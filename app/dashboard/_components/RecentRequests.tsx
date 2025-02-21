@@ -20,102 +20,6 @@ interface RoleData {
   requests: Request[]
 }
 
-// Datos de ejemplo - esto vendría de tu API
-const mockData: Record<string, RoleData> = {
-  'jefeoperativo': {
-    requests: [
-      {
-        id: "REQ-001",
-        type: "Mantenimiento",
-        property: "Torre A - Apto 502",
-        status: "pendiente",
-        date: "2024-02-10",
-        priority: "alta"
-      },
-      {
-        id: "REQ-002",
-        type: "Reparación",
-        property: "Torre B - Apto 301",
-        status: "en_proceso",
-        date: "2024-02-09",
-        priority: "media"
-      },
-      {
-        id: "REQ-003",
-        type: "Inspección",
-        property: "Torre C - Apto 1201",
-        status: "completada",
-        date: "2024-02-08",
-        priority: "baja"
-      }
-    ]
-  },
-  'administrador': {
-    requests: [
-      {
-        id: "REQ-001",
-        type: "Acceso",
-        property: "Sistema",
-        status: "pendiente",
-        date: "2024-02-10",
-        priority: "alta"
-      },
-      {
-        id: "REQ-002",
-        type: "Reporte",
-        property: "Finanzas",
-        status: "completada",
-        date: "2024-02-09",
-        priority: "media"
-      }
-    ]
-  },
-  'directorio': {
-    requests: [
-      {
-        id: "REQ-001",
-        type: "Aprobación",
-        property: "Presupuesto 2024",
-        status: "pendiente",
-        date: "2024-02-10",
-        priority: "alta"
-      },
-      {
-        id: "REQ-002",
-        type: "Revisión",
-        property: "Contratos",
-        status: "en_proceso",
-        date: "2024-02-09",
-        priority: "alta"
-      }
-    ]
-  },
-  'propietario': {
-    requests: [
-      {
-        id: "REQ-001",
-        type: "Mantenimiento",
-        property: "Mi Propiedad A",
-        status: "pendiente",
-        date: "2024-02-10",
-        priority: "media"
-      }
-    ]
-  },
-  'arrendatario': {
-    requests: [
-      {
-        id: "REQ-001",
-        type: "Reparación",
-        property: "Mi Alquiler",
-        status: "en_proceso",
-        date: "2024-02-10",
-        priority: "alta"
-      }
-    ]
-  }
-};
-
 const statusStyles: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
   en_proceso: "bg-blue-100 text-blue-800",
@@ -130,12 +34,45 @@ const priorityStyles: Record<string, string> = {
 
 export function RecentRequests({ role }: RecentRequestsProps) {
   const roleKey = role.toLowerCase().replace(/\s+/g, '');
-  const data = mockData[roleKey];
+  const data: RoleData = {
+    requests: []
+  };
 
-  if (!data || !data.requests) {
+  if (!data || !data.requests || data.requests.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        No hay solicitudes disponibles
+      <div className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ID
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Tipo
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Propiedad
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Estado
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Fecha
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Prioridad
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            <tr>
+              <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                No tienes solicitudes pendientes <br />
+                (Estás vienen del arrendatario y/o propietario).
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -166,7 +103,7 @@ export function RecentRequests({ role }: RecentRequestsProps) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {data.requests.map((request) => (
+          {data.requests.map((request: Request) => (
             <tr key={request.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {request.id}

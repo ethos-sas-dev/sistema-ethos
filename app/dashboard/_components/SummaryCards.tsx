@@ -27,6 +27,67 @@ const GET_CLIENT_PROPERTIES = gql`
   }
 `;
 
+const GET_ALMAX2_PROPERTIES = gql`
+  query GetAlmax2Properties {
+    propiedades(where: { proyecto: { nombre: { equals: "Almax 2" } } }) {
+      documentId
+      estadoUso
+      estadoOcupacion
+      escrituraPdf {
+        documentId
+      }
+      actaEntregaPdf {
+        documentId
+      }
+      contratoArrendamientoPdf {
+        documentId
+      }
+      propietario {
+        datosPersonaJuridica {
+          cedulaRepresentanteLegalPdf {
+            documentId
+          }
+          nombramientoRepresentanteLegalPdf {
+            documentId
+          }
+          rucPersonaJuridica {
+            rucPdf {
+              documentId
+            }
+          }
+          representanteLegalEsEmpresa
+          empresaRepresentanteLegal {
+            autorizacionRepresentacionPdf {
+              documentId
+            }
+            cedulaRepresentanteLegalPdf {
+              documentId
+            }
+            rucEmpresaRepresentanteLegal {
+              rucPdf {
+                documentId
+              }
+            }
+          }
+        }
+        datosPersonaNatural {
+          cedulaPdf {
+            documentId
+          }
+          rucPdf {
+            documentId
+          }
+          aplicaRuc
+        }
+        tipoPersona
+      }
+      ocupantes {
+        tipoOcupante
+      }
+    }
+  }
+`;
+
 interface SummaryCardsProps {
   role: UserRole
 }
@@ -62,6 +123,41 @@ interface PropertyData {
   areaUtil: number
   areaTotal: number
   tipoUso: string
+}
+
+interface Almax2Property {
+  documentId: string;
+  estadoUso: string;
+  estadoOcupacion: string;
+  escrituraPdf?: { documentId: string };
+  actaEntregaPdf?: { documentId: string };
+  contratoArrendamientoPdf?: { documentId: string };
+  propietario?: {
+    datosPersonaJuridica?: {
+      cedulaRepresentanteLegalPdf?: { documentId: string };
+      nombramientoRepresentanteLegalPdf?: { documentId: string };
+      rucPersonaJuridica?: Array<{
+        rucPdf?: { documentId: string };
+      }>;
+      representanteLegalEsEmpresa: boolean;
+      empresaRepresentanteLegal?: {
+        autorizacionRepresentacionPdf?: { documentId: string };
+        cedulaRepresentanteLegalPdf?: { documentId: string };
+        rucEmpresaRepresentanteLegal?: Array<{
+          rucPdf?: { documentId: string };
+        }>;
+      };
+    };
+    datosPersonaNatural?: {
+      cedulaPdf?: { documentId: string };
+      rucPdf?: { documentId: string };
+      aplicaRuc: boolean;
+    };
+    tipoPersona: string;
+  };
+  ocupantes?: Array<{
+    tipoOcupante: string;
+  }>;
 }
 
 type RoleData = {
@@ -143,29 +239,96 @@ export function SummaryCards({ role }: SummaryCardsProps) {
   console.log('SummaryCards - RoleKey:', roleKey);
   console.log('SummaryCards - DocumentId:', user?.perfil_cliente?.documentId);
 
+  // Consulta para propiedades de Almax 2
+  const { data: almax2Data, loading: almax2Loading } = useQuery(GET_ALMAX2_PROPERTIES, {
+    skip: roleKey !== 'jefeoperativo' && roleKey !== 'administrador' && roleKey !== 'directorio'
+  });
+
   // Consulta GraphQL para obtener las propiedades del cliente
-  const { data: clientData, loading, error } = useQuery(GET_CLIENT_PROPERTIES, {
+  const { data: clientData, loading: clientLoading, error } = useQuery(GET_CLIENT_PROPERTIES, {
     variables: { 
       documentId: user?.perfil_cliente?.documentId 
     },
-    skip: !user?.perfil_cliente?.documentId || (roleKey !== 'propietario' && roleKey !== 'arrendatario'),
-    onError: (error) => {
-      console.error('SummaryCards - Error en la consulta GraphQL:', {
-        message: error.message,
-        networkError: error.networkError,
-        graphQLErrors: error.graphQLErrors,
-      });
-    },
-    onCompleted: (data) => {
-      console.log('SummaryCards - Datos recibidos:', data);
-    }
+    skip: !user?.perfil_cliente?.documentId || (roleKey !== 'propietario' && roleKey !== 'arrendatario')
   });
 
-  // Para roles operativos, usamos los datos mock
-  const mockRoleData = mockData[roleKey];
+  // Calcular estadísticas de Almax 2
+  const calculateAlmax2Stats = () => {
+    if (!almax2Data?.propiedades) return null;
 
-  // Si estamos cargando datos del cliente
-  if (loading) {
+    const properties = almax2Data.propiedades as Almax2Property[];
+    const totalProperties = properties.length;
+    const occupiedProperties = properties.filter((p: Almax2Property) => p.estadoUso === 'enUso').length;
+
+    // Calcular porcentaje de documentos subidos
+    let totalRequiredDocs = 0;
+    let totalUploadedDocs = 0;
+
+    properties.forEach((property: Almax2Property) => {
+      // Documentos de la propiedad
+      const baseRequiredDocs = 2; // escritura y acta de entrega
+      const needsArrendamientoDoc = property.ocupantes?.some(
+        (ocupante) => ocupante.tipoOcupante === "arrendatario"
+      );
+      const propertyRequiredDocs = baseRequiredDocs + (needsArrendamientoDoc ? 1 : 0);
+      
+      let propertyUploadedDocs = [
+        property.escrituraPdf,
+        property.actaEntregaPdf,
+        needsArrendamientoDoc ? property.contratoArrendamientoPdf : null
+      ].filter(Boolean).length;
+
+      // Documentos del propietario
+      if (property.propietario?.datosPersonaJuridica) {
+        const isEmpresaRL = property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa;
+        const propietarioRequiredDocs = isEmpresaRL ? 6 : 3;
+        
+        let propietarioUploadedDocs = [
+          property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+          property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+          ...(property.propietario.datosPersonaJuridica.rucPersonaJuridica?.map(
+            (rucDoc) => rucDoc.rucPdf
+          ) || [])
+        ].filter(Boolean).length;
+
+        if (isEmpresaRL) {
+          propietarioUploadedDocs += [
+            property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+            property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+            ...(property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
+              (rucDoc) => rucDoc.rucPdf
+            ) || [])
+          ].filter(Boolean).length;
+        }
+
+        totalRequiredDocs += propietarioRequiredDocs;
+        totalUploadedDocs += propietarioUploadedDocs;
+      } else if (property.propietario?.datosPersonaNatural) {
+        const propietarioRequiredDocs = 1 + (property.propietario.datosPersonaNatural.aplicaRuc ? 1 : 0);
+        const propietarioUploadedDocs = [
+          property.propietario.datosPersonaNatural.cedulaPdf,
+          property.propietario.datosPersonaNatural.aplicaRuc ? property.propietario.datosPersonaNatural.rucPdf : null
+        ].filter(Boolean).length;
+
+        totalRequiredDocs += propietarioRequiredDocs;
+        totalUploadedDocs += propietarioUploadedDocs;
+      }
+
+      totalRequiredDocs += propertyRequiredDocs;
+      totalUploadedDocs += propertyUploadedDocs;
+    });
+
+    const docsPercentage = totalRequiredDocs > 0 ? (totalUploadedDocs / totalRequiredDocs) * 100 : 0;
+
+    return {
+      totalProperties,
+      occupiedProperties,
+      docsPercentage: Math.round(docsPercentage)
+    };
+  };
+
+  // Si estamos cargando datos
+  if (clientLoading || almax2Loading) {
     return (
       <div className="w-full h-48 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#008A4B]"></div>
@@ -183,11 +346,35 @@ export function SummaryCards({ role }: SummaryCardsProps) {
     );
   }
 
-  // Para roles que ven gráficas (jefe operativo, administrador, directorio)
-  if (mockRoleData?.charts) {
+  // Para roles operativos, mostrar estadísticas de Almax 2
+  if (roleKey === 'jefeoperativo' || roleKey === 'administrador' || roleKey === 'directorio') {
+    const almax2Stats = calculateAlmax2Stats();
+    if (!almax2Stats) return null;
+
+    const charts = [
+      {
+        title: "Propiedades Almax 2",
+        subtitle: `${Math.round((almax2Stats.occupiedProperties / almax2Stats.totalProperties) * 100)}% de ocupación`,
+        value: `${almax2Stats.occupiedProperties} / ${almax2Stats.totalProperties}`,
+        data: [
+          { name: "Ocupadas", value: almax2Stats.occupiedProperties },
+          { name: "Disponibles", value: almax2Stats.totalProperties - almax2Stats.occupiedProperties }
+        ]
+      },
+      {
+        title: "Documentación",
+        subtitle: "Estado de documentos",
+        value: `${almax2Stats.docsPercentage}% completado`,
+        data: [
+          { name: "Completado", value: almax2Stats.docsPercentage },
+          { name: "Pendiente", value: 100 - almax2Stats.docsPercentage }
+        ]
+      }
+    ];
+
     return (
       <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockRoleData.charts.map((chart, index) => (
+        {charts.map((chart, index) => (
           <div 
             key={index}
             className="bg-white rounded-2xl border p-8 group hover:shadow-md transition-shadow duration-200"
@@ -231,7 +418,7 @@ export function SummaryCards({ role }: SummaryCardsProps) {
           </div>
         ))}
       </motion.div>
-    )
+    );
   }
 
   // Para propietarios y arrendatarios que ven sus propiedades
@@ -241,7 +428,7 @@ export function SummaryCards({ role }: SummaryCardsProps) {
     location: prop.tipoUso,
     area: `${prop.areaTotal} m²`,
     status: prop.estadoOcupacion,
-    image: '/bodega.png' // Por ahora usamos una imagen por defecto
+    image: '/bodega.png'
   })) || [];
 
   if (properties.length === 0) {
