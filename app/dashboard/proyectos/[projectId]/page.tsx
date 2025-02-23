@@ -205,7 +205,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
           {isAdmin && (
             <Button 
               className="absolute top-6 right-6 z-10 bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2"
-              onClick={() => router.push(`/dashboard/proyectos/nueva-propiedad?projectId=${projectId}`)}
+              onClick={() => router.push(`/dashboard/proyectos/${projectId}/nueva-propiedad`)}
             >
               <PlusIcon className="w-4 h-4" />
               Nueva Propiedad
