@@ -6,7 +6,7 @@ const f = createUploadthing();
 export const ourFileRouter = {
   propertyDocument: f({
     pdf: {
-      maxFileSize: "16MB",
+      maxFileSize: "32MB",
       maxFileCount: 1,
     },
   })
@@ -23,6 +23,24 @@ export const ourFileRouter = {
       return { 
         url: file.url,
         documentType: metadata.documentType,
+        propertyId: metadata.propertyId
+      };
+    }),
+    
+  propertyImage: f({
+    image: {
+      maxFileSize: "8MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async ({ req }) => {
+      return { 
+        propertyId: req.headers.get("x-property-id")
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return { 
+        url: file.url,
         propertyId: metadata.propertyId
       };
     }),

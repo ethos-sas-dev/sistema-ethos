@@ -15,7 +15,7 @@ export function formatDate(input: string | number): string {
 }
 
 export function formatNumber(value: number, showDecimals: boolean = true): string {
-  return new Intl.NumberFormat('es-ES', {
+  return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: showDecimals ? 2 : 0,
     maximumFractionDigits: showDecimals ? 2 : 0,
   }).format(value)

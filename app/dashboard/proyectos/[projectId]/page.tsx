@@ -162,7 +162,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
       </div>
     );
   }
-  console.log(data);
+  // console.log(data);
 
   const project: Project = {
     ...data?.proyecto,
@@ -171,7 +171,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
     fotoProyecto: data?.proyecto?.fotoProyecto,
     propiedades: data?.proyecto?.propiedades || []
   };
-  console.log(project);
+  // console.log(project);
   const getProjectStats = (properties: Property[]) => {
     return {
       total: properties.length,
