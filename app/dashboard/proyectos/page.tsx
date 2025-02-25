@@ -172,7 +172,8 @@ export default function ProyectosPage() {
         {projects.map((project) => (
           <div
             key={project.documentId}
-            className="bg-white rounded-xl overflow-hidden border hover:shadow-lg transition-shadow duration-200"
+            className="bg-white rounded-xl overflow-hidden border hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+            onClick={() => router.push(`/dashboard/proyectos/${project.documentId}`)}
           >
             {project.fotoProyecto?.url && (
               <div className="relative h-48">
@@ -204,12 +205,6 @@ export default function ProyectosPage() {
                   Asignado a: {project.perfilOperacional.usuario.username}
                 </p>
               )}
-              <button
-                onClick={() => router.push(`/dashboard/proyectos/${project.documentId}`)}
-                className="mt-6 w-full bg-gray-50 text-[#008A4B] px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
-              >
-                Ver Detalles
-              </button>
             </div>
           </div>
         ))}

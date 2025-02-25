@@ -92,7 +92,7 @@ export function DocumentUploadButton({
             onClick={() => window.open(currentDocument.url, "_blank")}
           >
             <DocumentArrowDownIcon className="w-4 h-4" />
-            Descargar
+            Visualizar
           </Button>
         ) : (
           <div className="relative">

@@ -10,6 +10,7 @@ import { useForm, FormProvider, useFieldArray } from "react-hook-form";
 import { ArrowLeftIcon, DocumentArrowUpIcon } from "@heroicons/react/24/outline";
 import { UploadButton } from "@/utils/uploadthing";
 import { gql, useMutation, useQuery } from "@apollo/client";
+import { useProject } from "../../../_hooks/useProject"
 
 // Constantes
 const IDENTIFICADORES_SUPERIOR = [
@@ -473,6 +474,7 @@ export default function NuevaPropiedadPage() {
   const [paso, setPaso] = useState(1);
   const router = useRouter();
   const { projectId } = useParams();
+  const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
   
   // Obtener tasas del proyecto
   const { data: projectData } = useQuery(GET_PROJECT_RATES, {
@@ -588,7 +590,7 @@ export default function NuevaPropiedadPage() {
       });
 
       if (response.data?.createPropiedad) {
-        //router.push(`/dashboard/proyectos/${projectId}`);
+        await mutate();
         router.push(`/dashboard/proyectos/${projectId}/propiedades/${response.data?.createPropiedad.documentId}/asignar-propietario`);
       }
     } catch (error) {

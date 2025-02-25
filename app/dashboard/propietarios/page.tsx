@@ -426,7 +426,7 @@ export default function OccupantsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por número, tipo, ocupante o propietario..."
+            placeholder="Buscar por ocupante o propietario..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008A4B]/20 focus:border-[#008A4B]"
           />
         </div>
@@ -470,7 +470,7 @@ export default function OccupantsPage() {
                 </th>
               )}
               <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Ver detalles</span>
+                <span className="sr-only">Ver propiedad</span>
               </th>
             </tr>
           </thead>
@@ -547,7 +547,7 @@ export default function OccupantsPage() {
                         className="text-[#008A4B] hover:text-[#006837]"
                         onClick={() => router.push(`/dashboard/proyectos/${property.proyecto?.documentId}/propiedades/${property.documentId}?from=propietarios`)}
                       >
-                        Ver detalles
+                        Ver propiedad
                       </Button>
                     </td>
                   </tr>

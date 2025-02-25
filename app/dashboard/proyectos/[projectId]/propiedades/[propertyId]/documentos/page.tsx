@@ -204,7 +204,7 @@ export default function PropertyDocumentsPage({
                       className="text-[#008A4B] hover:text-[#006837]"
                     >
                       <ArrowDownIcon className="w-4 h-4 mr-1" />
-                      Descargar
+                      Visualizar
                     </Button>
                   </div>
                 </td>

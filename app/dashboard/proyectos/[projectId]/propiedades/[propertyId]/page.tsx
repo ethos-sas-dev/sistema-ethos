@@ -14,6 +14,7 @@ import {
   BuildingOffice2Icon,
   ClipboardDocumentListIcon,
   DocumentIcon,
+  IdentificationIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { use } from "react";
@@ -33,6 +34,7 @@ interface ContactInfo {
   nombreCompleto?: string;
   email?: string;
   telefono?: string;
+  cedula?: string;
 }
 
 interface AreaDesglosada {
@@ -132,6 +134,7 @@ interface Ocupante {
       nombreCompleto: string;
       email: string;
       telefono: string;
+      cedula?: string;
     };
     contactoAdministrativo?: {
       email: string;
@@ -327,6 +330,7 @@ const GET_PROPERTY_DETAILS = gql`
           nombreCompleto
           telefono
           email
+          cedula
         }
         contactoAdministrativo {
           email
@@ -577,6 +581,7 @@ const GET_PROPERTY_DETAILS = gql`
             nombreCompleto
             email
             telefono
+            cedula
           }
           contactoAdministrativo {
             email
@@ -1171,7 +1176,15 @@ export default function PropertyDetailPage({
                       <UserIcon className="w-4 h-4 text-gray-500 mt-0.5" />
                       <p className="text-sm">
                         <span className="font-medium">
-                          {property.propietario.contactoAccesos.nombreCompleto}
+                          {property.propietario.contactoAccesos.nombreCompleto || "-"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <IdentificationIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                      <p className="text-sm">
+                        <span className="font-medium">
+                          {property.propietario.contactoAccesos.cedula || "-"}
                         </span>
                       </p>
                     </div>
@@ -1179,18 +1192,20 @@ export default function PropertyDetailPage({
                       <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
                       <p className="text-sm">
                         <span className="font-medium">
-                          {property.propietario.contactoAccesos.telefono}
+                          {property.propietario.contactoAccesos.telefono || "-"}
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <a
-                        href={`mailto:${property.propietario.contactoAccesos.email}`}
-                        className="text-sm font-medium text-[#008A4B] hover:underline"
-                      >
-                        {property.propietario.contactoAccesos.email}
-                      </a>
+                    <div className="flex items-start gap-2 w-full">
+                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                      <div className="overflow-hidden w-full">
+                        <a
+                          href={`mailto:${property.propietario.contactoAccesos.email}`}
+                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                        >
+                          {property.propietario.contactoAccesos.email || "-"}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1212,15 +1227,16 @@ export default function PropertyDetailPage({
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <a
-                        href={`mailto:${property.propietario.contactoAdministrativo.email}`}
-                        className="text-sm font-medium text-[#008A4B] hover:underline"
-                      >
-                        {property.propietario.contactoAdministrativo.email ||
-                          "-"}
-                      </a>
+                    <div className="flex items-start gap-2 w-full">
+                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                      <div className="overflow-hidden w-full">
+                        <a
+                          href={`mailto:${property.propietario.contactoAdministrativo.email}`}
+                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                        >
+                          {property.propietario.contactoAdministrativo.email || "-"}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1241,14 +1257,16 @@ export default function PropertyDetailPage({
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <a
-                        href={`mailto:${property.propietario.contactoGerente.email}`}
-                        className="text-sm font-medium text-[#008A4B] hover:underline"
-                      >
-                        {property.propietario.contactoGerente.email || "-"}
-                      </a>
+                    <div className="flex items-start gap-2 w-full">
+                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                      <div className="overflow-hidden w-full">
+                        <a
+                          href={`mailto:${property.propietario.contactoGerente.email}`}
+                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                        >
+                          {property.propietario.contactoGerente.email || "-"}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1270,14 +1288,16 @@ export default function PropertyDetailPage({
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-start gap-2 text-wrap">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <a
-                        href={`mailto:${property.propietario.contactoProveedores.email}`}
-                        className="text-sm font-medium text-[#008A4B] hover:underline "
-                      >
-                        {property.propietario.contactoProveedores.email || "-"}
-                      </a>
+                    <div className="flex items-start gap-2 w-full">
+                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                      <div className="overflow-hidden w-full">
+                        <a
+                          href={`mailto:${property.propietario.contactoProveedores.email}`}
+                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                        >
+                          {property.propietario.contactoProveedores.email || "-"}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
