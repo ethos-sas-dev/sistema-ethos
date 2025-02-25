@@ -395,7 +395,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         </div>
         <div className="bg-white rounded-xl border p-6">
           <div className="text-3xl font-light">
-            {formatNumber(project.propiedades.reduce((sum: number, prop: Property) => sum + (prop.areaTotal || 0), 0), false)} m²
+            {formatNumber(project.propiedades.reduce((sum: number, prop: Property) => sum + (prop.areaTotal || 0), 0), true)} m²
           </div>
           <div className="text-gray-500 mt-1">Área Total</div>
           {/* {isAdmin && (

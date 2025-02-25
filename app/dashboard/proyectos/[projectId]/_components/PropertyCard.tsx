@@ -62,7 +62,7 @@ const PropertyCard = memo(function PropertyCard({ property, projectId, projectIm
           )}
           <div className="absolute top-4 left-4 z-10">
             <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm">
-              {formatNumber(property.areaTotal, false)} m²
+              {formatNumber(property.areaTotal, true)} m²
             </div>
           </div>
         </div>

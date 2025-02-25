@@ -908,6 +908,43 @@ export default function PropertyDetailPage({
     return promise;
   };
 
+  // Función auxiliar para obtener la información de contacto según el encargado de pago
+  const getContactInfo = (property: Property) => {
+    if (!property.pagos?.encargadoDePago) {
+      return property.propietario;
+    }
+
+    const encargadoDePago = property.pagos.encargadoDePago.toLowerCase();
+    
+    if (encargadoDePago === 'propietario') {
+      return property.propietario;
+    }
+
+    // Si el encargado es ocupante, buscar el ocupante correspondiente
+    const ocupante = property.ocupantes?.find(
+      (o) => o.tipoOcupante.toLowerCase() === encargadoDePago
+    );
+
+    if (ocupante?.perfilCliente) {
+      const contactInfo = {
+        contactoAccesos: ocupante.perfilCliente.contactoAccesos || null,
+        contactoAdministrativo: ocupante.perfilCliente.contactoAdministrativo || null,
+        contactoGerente: ocupante.perfilCliente.contactoGerente || null,
+        contactoProveedores: ocupante.perfilCliente.contactoProveedores || null
+      };
+
+      // Verificar si hay al menos un contacto con información
+      const hasAnyContact = Object.values(contactInfo).some(contact => contact !== null);
+      
+      if (hasAnyContact) {
+        return contactInfo;
+      }
+    }
+
+    // Si no se encuentra información del ocupante o no tiene contactos, devolver la del propietario
+    return property.propietario;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -983,7 +1020,7 @@ export default function PropertyDetailPage({
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium bg-white/20 backdrop-blur-sm`}
                 >
-                  {formatNumber(property.areaTotal, false)} m²
+                  {formatNumber(property.areaTotal, true)} m²
                 </span>
               </div>
             </div>
@@ -1101,7 +1138,7 @@ export default function PropertyDetailPage({
             <div className="col-span-2 bg-gray-50 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-500">Área Total</h3>
               <p className="mt-1 text-2xl font-light">
-                {formatNumber(property.areaTotal, false)} m²
+                {formatNumber(property.areaTotal, true)} m²
               </p>
             </div>
 
@@ -1113,7 +1150,7 @@ export default function PropertyDetailPage({
                     {area.nombreAdicional || area.tipoDeArea}
                   </h3>
                   <p className="mt-1 text-xl font-light">
-                    {formatNumber(area.area, false)} m²
+                    {formatNumber(area.area, true)} m²
                   </p>
                   {area.tieneTasaAlicuotaOrdinariaEspecial && (
                     <p className="mt-1 text-xs text-gray-500">
@@ -1174,150 +1211,140 @@ export default function PropertyDetailPage({
           </div>
         </div>
 
-        {/* Sección de Contactos */}
+        {/* Información de Contacto */}
         {property.propietario && (
           <div className="bg-white rounded-xl border p-6 lg:col-span-2">
             <h2 className="text-lg font-semibold mb-4">
-              Información de Contacto
+              Información de Contacto {property.pagos?.encargadoDePago && `(${property.pagos.encargadoDePago})`}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Contacto de Accesos */}
-              {property.propietario.contactoAccesos && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    Contacto de Accesos
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <UserIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoAccesos.nombreCompleto || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <IdentificationIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoAccesos.cedula || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoAccesos.telefono || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2 w-full">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="overflow-hidden w-full">
-                        <a
-                          href={`mailto:${property.propietario.contactoAccesos.email}`}
-                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
-                        >
-                          {property.propietario.contactoAccesos.email || "-"}
-                        </a>
-                      </div>
+              {/* Contacto Accesos */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Contacto Accesos
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <UserIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoAccesos?.nombreCompleto || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <IdentificationIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoAccesos?.cedula || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoAccesos?.telefono || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 w-full">
+                    <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="overflow-hidden w-full">
+                      <a
+                        href={`mailto:${getContactInfo(property)?.contactoAccesos?.email}`}
+                        className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                      >
+                        {getContactInfo(property)?.contactoAccesos?.email || "-"}
+                      </a>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Contacto Administrativo */}
-              {property.propietario.contactoAdministrativo && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    Contacto Administrativo
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoAdministrativo
-                            .telefono || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2 w-full">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="overflow-hidden w-full">
-                        <a
-                          href={`mailto:${property.propietario.contactoAdministrativo.email}`}
-                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
-                        >
-                          {property.propietario.contactoAdministrativo.email || "-"}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Contacto Gerente */}
-              {property.propietario.contactoGerente && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    Contacto Gerente
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoGerente.telefono || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2 w-full">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="overflow-hidden w-full">
-                        <a
-                          href={`mailto:${property.propietario.contactoGerente.email}`}
-                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
-                        >
-                          {property.propietario.contactoGerente.email || "-"}
-                        </a>
-                      </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Contacto Gerente
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoGerente?.telefono || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 w-full">
+                    <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="overflow-hidden w-full">
+                      <a
+                        href={`mailto:${getContactInfo(property)?.contactoGerente?.email}`}
+                        className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                      >
+                        {getContactInfo(property)?.contactoGerente?.email || "-"}
+                      </a>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Contacto Proveedores */}
-              {property.propietario.contactoProveedores && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    Contacto Proveedores
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
-                      <p className="text-sm">
-                        <span className="font-medium">
-                          {property.propietario.contactoProveedores.telefono ||
-                            "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2 w-full">
-                      <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="overflow-hidden w-full">
-                        <a
-                          href={`mailto:${property.propietario.contactoProveedores.email}`}
-                          className="text-sm font-medium text-[#008A4B] hover:underline break-all"
-                        >
-                          {property.propietario.contactoProveedores.email || "-"}
-                        </a>
-                      </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Contacto Proveedores
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoProveedores?.telefono || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 w-full">
+                    <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="overflow-hidden w-full">
+                      <a
+                        href={`mailto:${getContactInfo(property)?.contactoProveedores?.email}`}
+                        className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                      >
+                        {getContactInfo(property)?.contactoProveedores?.email || "-"}
+                      </a>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* Contacto Administrativo */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Contacto Administrativo
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <PhoneIcon className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {getContactInfo(property)?.contactoAdministrativo?.telefono || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 w-full">
+                    <EnvelopeIcon className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="overflow-hidden w-full">
+                      <a
+                        href={`mailto:${getContactInfo(property)?.contactoAdministrativo?.email}`}
+                        className="text-sm font-medium text-[#008A4B] hover:underline break-all"
+                      >
+                        {getContactInfo(property)?.contactoAdministrativo?.email || "-"}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
