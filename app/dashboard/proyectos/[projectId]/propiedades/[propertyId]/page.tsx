@@ -100,7 +100,9 @@ interface Propietario {
 interface Ocupante {
   tipoOcupante: string;
   datosPersonaJuridica?: {
+    razonSocialRepresentanteLegal: string;
     cedulaRepresentanteLegalPdf: Document;
+    cedulaRepresentanteLegal: string;
     nombramientoRepresentanteLegalPdf: Document;
     rucPersonaJuridica: Array<RucDocument>;
     razonSocial: string;
@@ -123,6 +125,8 @@ interface Ocupante {
       ruc?: string;
     };
     datosPersonaJuridica?: {
+      cedulaRepresentanteLegal: string;
+      razonSocialRepresentanteLegal: string;
       cedulaRepresentanteLegalPdf: Document;
       nombramientoRepresentanteLegalPdf: Document;
       rucPersonaJuridica: Array<RucDocument>;
@@ -712,7 +716,7 @@ export default function PropertyDetailPage({
     if (property.propietario?.datosPersonaJuridica) {
       return property.propietario.datosPersonaJuridica
         .representanteLegalEsEmpresa
-        ? 6
+        ? 4
         : 3;
     } else if (property.propietario?.datosPersonaNatural) {
       return 1 + (property.propietario.datosPersonaNatural.aplicaRuc ? 1 : 0);
@@ -722,27 +726,39 @@ export default function PropertyDetailPage({
 
   const getUploadedDocsCount = (property: Property) => {
     if (property.propietario?.datosPersonaJuridica) {
-      const docs = [
-        property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
-        property.propietario.datosPersonaJuridica
-          .nombramientoRepresentanteLegalPdf,
+      const esEmpresaRL = property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa;
+      
+      // Documentos base para persona jurídica
+      const docsBase = [
+        // RUCs de la empresa (al menos uno)
         ...(property.propietario.datosPersonaJuridica.rucPersonaJuridica?.map(
           (rucDoc) => rucDoc.rucPdf
         ) || []),
-        ...(property.propietario.datosPersonaJuridica
-          .representanteLegalEsEmpresa
-          ? [
-              property.propietario.datosPersonaJuridica
-                .empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
-              property.propietario.datosPersonaJuridica
-                .empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
-              property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
-                (rucDoc) => rucDoc.rucPdf
-              ) || [],
-            ]
-          : []),
       ];
-      return docs.filter(Boolean).length;
+
+      if (esEmpresaRL) {
+        // Si el representante legal es una empresa, necesitamos 4 documentos mínimo:
+        const docsEmpresaRL = [
+          // 1. Autorización de representación
+          property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+          // 2. Cédula del representante legal de la empresa RL
+          property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+          // 3. RUCs de la empresa representante legal (al menos uno)
+          ...(property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
+            (rucDoc) => rucDoc.rucPdf
+          ) || []),
+        ];
+        return [...docsBase, ...docsEmpresaRL].filter(Boolean).length;
+      } else {
+        // Si el representante legal es persona natural, necesitamos 3 documentos mínimo:
+        const docsPersonaNatural = [
+          // 1. Cédula del representante legal
+          property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+          // 2. Nombramiento del representante legal
+          property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+        ];
+        return [...docsBase, ...docsPersonaNatural].filter(Boolean).length;
+      }
     } else if (property.propietario?.datosPersonaNatural) {
       const docs = [
         property.propietario.datosPersonaNatural.cedulaPdf,
@@ -1662,7 +1678,7 @@ export default function PropertyDetailPage({
             <div className="space-y-4">
               {property.propietario.datosPersonaJuridica && (
                 <>
-                  {/* RUC */}
+                  {/* RUC de la empresa (siempre requerido para persona jurídica) */}
                   {property.propietario.datosPersonaJuridica.rucPersonaJuridica.map(
                     (rucDoc, index) => (
                       <DocumentUploadButton
@@ -1682,45 +1698,8 @@ export default function PropertyDetailPage({
                     )
                   )}
 
-                  {/* Cédula del Representante Legal */}
-                  <DocumentUploadButton
-                    documentType="Cédula del representante legal"
-                    propertyId={propertyId}
-                    onUploadComplete={(url: string, name: string) =>
-                      handleDocumentUpload(
-                        url,
-                        name,
-                        "datosPersonaJuridica.cedulaRepresentanteLegalPdf",
-                        "propietario"
-                      )
-                    }
-                    currentDocument={
-                      property.propietario.datosPersonaJuridica
-                        .cedulaRepresentanteLegalPdf
-                    }
-                  />
-
-                  {/* Nombramiento del Representante Legal */}
-                  <DocumentUploadButton
-                    documentType="Nombramiento del representante legal"
-                    propertyId={propertyId}
-                    onUploadComplete={(url: string, name: string) =>
-                      handleDocumentUpload(
-                        url,
-                        name,
-                        "datosPersonaJuridica.nombramientoRepresentanteLegalPdf",
-                        "propietario"
-                      )
-                    }
-                    currentDocument={
-                      property.propietario.datosPersonaJuridica
-                        .nombramientoRepresentanteLegalPdf
-                    }
-                  />
-
-                  {/* Documentos adicionales solo si el representante legal es empresa */}
-                  {property.propietario.datosPersonaJuridica
-                    .representanteLegalEsEmpresa && (
+                  {property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa ? (
+                    // Si el representante legal es una empresa
                     <>
                       {/* Autorización de representación */}
                       <DocumentUploadButton
@@ -1736,12 +1715,11 @@ export default function PropertyDetailPage({
                         }
                         currentDocument={
                           property.propietario.datosPersonaJuridica
-                            .empresaRepresentanteLegal
-                            ?.autorizacionRepresentacionPdf
+                            .empresaRepresentanteLegal?.autorizacionRepresentacionPdf
                         }
                       />
 
-                      {/* Cédula del representante legal de la empresa */}
+                      {/* Cédula del representante legal de la empresa RL */}
                       <DocumentUploadButton
                         documentType="Cédula del representante legal de la empresa RL"
                         propertyId={propertyId}
@@ -1755,8 +1733,7 @@ export default function PropertyDetailPage({
                         }
                         currentDocument={
                           property.propietario.datosPersonaJuridica
-                            .empresaRepresentanteLegal
-                            ?.cedulaRepresentanteLegalPdf
+                            .empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf
                         }
                       />
 
@@ -1765,9 +1742,7 @@ export default function PropertyDetailPage({
                         (rucDoc, index) => (
                           <DocumentUploadButton
                             key={index}
-                            documentType={`RUC de la empresa representante legal ${
-                              index + 1
-                            }`}
+                            documentType={`RUC de la empresa representante legal ${index + 1}`}
                             propertyId={propertyId}
                             onUploadComplete={(url: string, name: string) =>
                               handleDocumentUpload(
@@ -1782,11 +1757,50 @@ export default function PropertyDetailPage({
                         )
                       )}
                     </>
+                  ) : (
+                    // Si el representante legal es persona natural
+                    <>
+                      {/* Cédula del representante legal */}
+                      <DocumentUploadButton
+                        documentType="Cédula del representante legal"
+                        propertyId={propertyId}
+                        onUploadComplete={(url: string, name: string) =>
+                          handleDocumentUpload(
+                            url,
+                            name,
+                            "datosPersonaJuridica.cedulaRepresentanteLegalPdf",
+                            "propietario"
+                          )
+                        }
+                        currentDocument={
+                          property.propietario.datosPersonaJuridica
+                            .cedulaRepresentanteLegalPdf
+                        }
+                      />
+
+                      {/* Nombramiento del representante legal */}
+                      <DocumentUploadButton
+                        documentType="Nombramiento del representante legal"
+                        propertyId={propertyId}
+                        onUploadComplete={(url: string, name: string) =>
+                          handleDocumentUpload(
+                            url,
+                            name,
+                            "datosPersonaJuridica.nombramientoRepresentanteLegalPdf",
+                            "propietario"
+                          )
+                        }
+                        currentDocument={
+                          property.propietario.datosPersonaJuridica
+                            .nombramientoRepresentanteLegalPdf
+                        }
+                      />
+                    </>
                   )}
                 </>
               )}
 
-              {/* Documentos para Persona Natural */}
+              {/* Mantener la parte de persona natural igual */}
               {property.propietario.datosPersonaNatural && (
                 <>
                   {/* Cédula */}
@@ -1862,35 +1876,44 @@ export default function PropertyDetailPage({
               // Calcular documentos requeridos y subidos
               const getDocumentCounts = () => {
                 if (datosPersonaJuridica) {
-                  const requiredDocs =
-                    datosPersonaJuridica.representanteLegalEsEmpresa ? 6 : 3;
-                  const uploadedDocs = [
+                  const esEmpresaRL = datosPersonaJuridica.representanteLegalEsEmpresa;
+                  
+                  // Documentos base para persona jurídica
+                  const docsBase = [
+                    // RUCs de la empresa (al menos uno)
                     ...(datosPersonaJuridica.rucPersonaJuridica?.map(
                       (rucDoc) => rucDoc.rucPdf
                     ) || []),
-                    datosPersonaJuridica.cedulaRepresentanteLegalPdf,
-                    datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
-                    ...(datosPersonaJuridica.representanteLegalEsEmpresa
-                      ? [
-                          datosPersonaJuridica.empresaRepresentanteLegal
-                            ?.autorizacionRepresentacionPdf,
-                          datosPersonaJuridica.empresaRepresentanteLegal
-                            ?.cedulaRepresentanteLegalPdf,
-                          ...(datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
-                            (rucDoc) => rucDoc.rucPdf
-                          ) || []),
-                        ]
-                      : []),
-                  ].filter(Boolean).length;
-                  return { requiredDocs, uploadedDocs };
+                  ];
+
+                  if (esEmpresaRL) {
+                    // Si el representante legal es una empresa, necesitamos 4 documentos mínimo:
+                    const docsEmpresaRL = [
+                      // 1. Autorización de representación
+                      datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                      // 2. Cédula del representante legal de la empresa RL
+                      datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                      // 3. RUCs de la empresa representante legal (al menos uno)
+                      ...(datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
+                        (rucDoc) => rucDoc.rucPdf
+                      ) || []),
+                    ];
+                    return { requiredDocs: 4, uploadedDocs: [...docsBase, ...docsEmpresaRL].filter(Boolean).length };
+                  } else {
+                    // Si el representante legal es persona natural, necesitamos 3 documentos mínimo:
+                    const docsPersonaNatural = [
+                      // 1. Cédula del representante legal
+                      datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+                      // 2. Nombramiento del representante legal
+                      datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                    ];
+                    return { requiredDocs: 3, uploadedDocs: [...docsBase, ...docsPersonaNatural].filter(Boolean).length };
+                  }
                 } else if (datosPersonaNatural) {
-                  const requiredDocs =
-                    1 + (datosPersonaNatural.aplicaRuc ? 1 : 0);
+                  const requiredDocs = 1 + (datosPersonaNatural.aplicaRuc ? 1 : 0);
                   const uploadedDocs = [
                     datosPersonaNatural.cedulaPdf,
-                    ...(datosPersonaNatural.aplicaRuc
-                      ? [datosPersonaNatural.rucPdf]
-                      : []),
+                    ...(datosPersonaNatural.aplicaRuc ? [datosPersonaNatural.rucPdf] : []),
                   ].filter(Boolean).length;
                   return { requiredDocs, uploadedDocs };
                 }
@@ -1967,7 +1990,6 @@ export default function PropertyDetailPage({
                             {datosPersonaJuridica.razonSocial}
                           </p>
                         </div>
-
                         {datosPersonaJuridica.rucPersonaJuridica &&
                           datosPersonaJuridica.rucPersonaJuridica.length >
                             0 && (
@@ -1980,108 +2002,85 @@ export default function PropertyDetailPage({
                               </p>
                             </div>
                           )}
-
-                        {/* Contactos del ocupante si tiene perfil cliente */}
-                        {ocupante.perfilCliente && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <h5 className="text-sm font-semibold text-gray-900 mb-3">
-                              Información de Contacto
-                            </h5>
-                            <div className="space-y-3">
-                              {ocupante.perfilCliente.contactoAccesos && (
-                                <div>
-                                  <p className="text-sm text-gray-500">
-                                    Contacto de Accesos
-                                  </p>
-                                  <div className="mt-1 space-y-1">
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente.contactoAccesos
-                                          .nombreCompleto
-                                      }
-                                    </p>
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente.contactoAccesos
-                                          .telefono
-                                      }
-                                    </p>
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente.contactoAccesos
-                                          .email
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {ocupante.perfilCliente
-                                .contactoAdministrativo && (
-                                <div>
-                                  <p className="text-sm text-gray-500">
-                                    Contacto Administrativo
-                                  </p>
-                                  <div className="mt-1 space-y-1">
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente
-                                          .contactoAdministrativo.telefono
-                                      }
-                                    </p>
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente
-                                          .contactoAdministrativo.email
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {ocupante.perfilCliente.contactoGerente && (
-                                <div>
-                                  <p className="text-sm text-gray-500">
-                                    Contacto Gerente
-                                  </p>
-                                  <div className="mt-1 space-y-1">
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente.contactoGerente
-                                          .telefono
-                                      }
-                                    </p>
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente.contactoGerente
-                                          .email
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {ocupante.perfilCliente.contactoProveedores && (
-                                <div>
-                                  <p className="text-sm text-gray-500">
-                                    Contacto Proveedores
-                                  </p>
-                                  <div className="mt-1 space-y-1">
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente
-                                          .contactoProveedores.telefono
-                                      }
-                                    </p>
-                                    <p className="text-sm">
-                                      {
-                                        ocupante.perfilCliente
-                                          .contactoProveedores.email
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                        {/* {datosPersonaJuridica.nombreComercial && (
+                          <div>
+                            <p className="text-sm text-gray-500">Nombre Comercial</p>
+                            <p className="text-sm font-medium">
+                              {datosPersonaJuridica.nombreComercial}
+                            </p>
                           </div>
-                        )}
+                        )} */}
+
+                        {/* Información del Representante Legal */}
+                        <div className="mt-4 pt-4 border-t">
+                          <h5 className="text-sm font-semibold text-gray-900 mb-3">
+                            Información del Representante Legal
+                          </h5>
+                          
+                          {datosPersonaJuridica.representanteLegalEsEmpresa ? (
+                            // Si el representante legal es una empresa
+                            <>
+                              <div>
+                                <p className="text-sm text-gray-500">Empresa Representante Legal</p>
+                                <p className="text-sm font-medium">
+                                  {datosPersonaJuridica.empresaRepresentanteLegal?.nombreComercial}
+                                </p>
+                              </div>
+
+                              {datosPersonaJuridica.empresaRepresentanteLegal?.nombreRepresentanteLegalRL && (
+                                <div>
+                                  <p className="text-sm text-gray-500">Nombre del Representante Legal RL</p>
+                                  <p className="text-sm font-medium">
+                                    {datosPersonaJuridica.empresaRepresentanteLegal.nombreRepresentanteLegalRL}
+                                  </p>
+                                </div>
+                              )}
+
+                              {datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegal && (
+                                <div>
+                                  <p className="text-sm text-gray-500">Cédula del Representante Legal RL</p>
+                                  <p className="text-sm font-medium">
+                                    {datosPersonaJuridica.empresaRepresentanteLegal.cedulaRepresentanteLegal}
+                                  </p>
+                                </div>
+                              )}
+
+                              {datosPersonaJuridica.empresaRepresentanteLegal?.direccionLegal && (
+                                <div>
+                                  <p className="text-sm text-gray-500">Dirección Legal</p>
+                                  <p className="text-sm font-medium">
+                                    {datosPersonaJuridica.empresaRepresentanteLegal.direccionLegal}
+                                  </p>
+                                </div>
+                              )}
+
+                              {datosPersonaJuridica.empresaRepresentanteLegal?.observaciones && (
+                                <div>
+                                  <p className="text-sm text-gray-500">Observaciones</p>
+                                  <p className="text-sm font-medium">
+                                    {datosPersonaJuridica.empresaRepresentanteLegal.observaciones}
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            // Si el representante legal es persona natural
+                            <>
+                              <div>
+                                <p className="text-sm text-gray-500">Nombre del Representante Legal</p>
+                                <p className="text-sm font-medium">
+                                  {datosPersonaJuridica.razonSocialRepresentanteLegal}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500 mt-2">Cédula del Representante Legal</p>
+                                <p className="text-sm font-medium">
+                                  {datosPersonaJuridica.cedulaRepresentanteLegal}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -2236,101 +2235,103 @@ export default function PropertyDetailPage({
                           )
                         )}
 
-                        {/* Cédula del Representante Legal */}
-                        <DocumentUploadButton
-                          documentType="Cédula del representante legal"
-                          propertyId={propertyId}
-                          onUploadComplete={(url: string, name: string) =>
-                            handleDocumentUpload(
-                              url,
-                              name,
-                              "datosPersonaJuridica.cedulaRepresentanteLegalPdf",
-                              "ocupante",
-                              ocupante
-                            )
-                          }
-                          currentDocument={
-                            datosPersonaJuridica.cedulaRepresentanteLegalPdf
-                          }
-                        />
-
-                        {/* Nombramiento del Representante Legal */}
-                        <DocumentUploadButton
-                          documentType="Nombramiento del representante legal"
-                          propertyId={propertyId}
-                          onUploadComplete={(url: string, name: string) =>
-                            handleDocumentUpload(
-                              url,
-                              name,
-                              "datosPersonaJuridica.nombramientoRepresentanteLegalPdf",
-                              "ocupante",
-                              ocupante
-                            )
-                          }
-                          currentDocument={
-                            datosPersonaJuridica.nombramientoRepresentanteLegalPdf
-                          }
-                        />
-
-                        {/* Autorización de representación */}
-                        <DocumentUploadButton
-                          documentType="Autorización de representación"
-                          propertyId={propertyId}
-                          onUploadComplete={(url: string, name: string) =>
-                            handleDocumentUpload(
-                              url,
-                              name,
-                              "datosPersonaJuridica.empresaRepresentanteLegal.autorizacionRepresentacionPdf",
-                              "ocupante",
-                              ocupante
-                            )
-                          }
-                          currentDocument={
-                            datosPersonaJuridica.empresaRepresentanteLegal
-                              ?.autorizacionRepresentacionPdf
-                          }
-                        />
-
-                        {/* Cédula del representante legal de la empresa */}
-                        <DocumentUploadButton
-                          documentType="Cédula del representante legal de la empresa RL"
-                          propertyId={propertyId}
-                          onUploadComplete={(url: string, name: string) =>
-                            handleDocumentUpload(
-                              url,
-                              name,
-                              "datosPersonaJuridica.empresaRepresentanteLegal.cedulaRepresentanteLegalPdf",
-                              "ocupante",
-                              ocupante
-                            )
-                          }
-                          currentDocument={
-                            datosPersonaJuridica.empresaRepresentanteLegal
-                              ?.cedulaRepresentanteLegalPdf
-                          }
-                        />
-
-                        {/* RUCs de la empresa representante legal */}
-                        {datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal.map(
-                          (rucDoc, index) => (
+                        {datosPersonaJuridica.representanteLegalEsEmpresa ? (
+                          // Si el representante legal es una empresa
+                          <>
+                            {/* Autorización de representación */}
                             <DocumentUploadButton
-                              key={index}
-                              documentType={`RUC de la empresa representante legal ${
-                                index + 1
-                              }`}
+                              documentType="Autorización de representación"
                               propertyId={propertyId}
                               onUploadComplete={(url: string, name: string) =>
                                 handleDocumentUpload(
                                   url,
                                   name,
-                                  `datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal[${index}]`,
+                                  "datosPersonaJuridica.empresaRepresentanteLegal.autorizacionRepresentacionPdf",
                                   "ocupante",
                                   ocupante
                                 )
                               }
-                              currentDocument={rucDoc.rucPdf}
+                              currentDocument={
+                                datosPersonaJuridica.empresaRepresentanteLegal
+                                  ?.autorizacionRepresentacionPdf
+                              }
                             />
-                          )
+
+                            {/* Cédula del representante legal de la empresa RL */}
+                            <DocumentUploadButton
+                              documentType="Cédula del representante legal de la empresa RL"
+                              propertyId={propertyId}
+                              onUploadComplete={(url: string, name: string) =>
+                                handleDocumentUpload(
+                                  url,
+                                  name,
+                                  "datosPersonaJuridica.empresaRepresentanteLegal.cedulaRepresentanteLegalPdf",
+                                  "ocupante",
+                                  ocupante
+                                )
+                              }
+                              currentDocument={
+                                datosPersonaJuridica.empresaRepresentanteLegal
+                                  ?.cedulaRepresentanteLegalPdf
+                              }
+                            />
+
+                            {/* RUCs de la empresa representante legal */}
+                            {datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal.map(
+                              (rucDoc, index) => (
+                                <DocumentUploadButton
+                                  key={index}
+                                  documentType={`RUC de la empresa representante legal ${index + 1}`}
+                                  propertyId={propertyId}
+                                  onUploadComplete={(url: string, name: string) =>
+                                    handleDocumentUpload(
+                                      url,
+                                      name,
+                                      `datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal[${index}]`,
+                                      "ocupante",
+                                      ocupante
+                                    )
+                                  }
+                                  currentDocument={rucDoc.rucPdf}
+                                />
+                              )
+                            )}
+                          </>
+                        ) : (
+                          // Si el representante legal es persona natural
+                          <>
+                            {/* Cédula del representante legal */}
+                            <DocumentUploadButton
+                              documentType="Cédula del representante legal"
+                              propertyId={propertyId}
+                              onUploadComplete={(url: string, name: string) =>
+                                handleDocumentUpload(
+                                  url,
+                                  name,
+                                  "datosPersonaJuridica.cedulaRepresentanteLegalPdf",
+                                  "ocupante",
+                                  ocupante
+                                )
+                              }
+                              currentDocument={datosPersonaJuridica.cedulaRepresentanteLegalPdf}
+                            />
+
+                            {/* Nombramiento del representante legal */}
+                            <DocumentUploadButton
+                              documentType="Nombramiento del representante legal"
+                              propertyId={propertyId}
+                              onUploadComplete={(url: string, name: string) =>
+                                handleDocumentUpload(
+                                  url,
+                                  name,
+                                  "datosPersonaJuridica.nombramientoRepresentanteLegalPdf",
+                                  "ocupante",
+                                  ocupante
+                                )
+                              }
+                              currentDocument={datosPersonaJuridica.nombramientoRepresentanteLegalPdf}
+                            />
+                          </>
                         )}
                       </>
                     )}

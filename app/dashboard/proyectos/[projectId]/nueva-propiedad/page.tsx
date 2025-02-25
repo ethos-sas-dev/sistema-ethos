@@ -10,7 +10,8 @@ import { useForm, FormProvider, useFieldArray } from "react-hook-form";
 import { ArrowLeftIcon, DocumentArrowUpIcon } from "@heroicons/react/24/outline";
 import { UploadButton } from "@/utils/uploadthing";
 import { gql, useMutation, useQuery } from "@apollo/client";
-import { useProject } from "../../../_hooks/useProject"
+import { StatusModal } from "@/_components/StatusModal";
+import { useProject } from "@/dashboard/_hooks/useProject";
 
 // Constantes
 const IDENTIFICADORES_SUPERIOR = [
@@ -590,8 +591,9 @@ export default function NuevaPropiedadPage() {
       });
 
       if (response.data?.createPropiedad) {
-        await mutate();
-        router.push(`/dashboard/proyectos/${projectId}/propiedades/${response.data?.createPropiedad.documentId}/asignar-propietario`);
+        const newPropertyId = response.data.createPropiedad.documentId;
+        setNewPropertyId(newPropertyId);
+        setShowSuccessModal(true);
       }
     } catch (error) {
       console.error("Error al guardar:", error);
@@ -599,6 +601,11 @@ export default function NuevaPropiedadPage() {
   };
 
   const { fondoInicial, alicuotaOrdinaria } = calcularMontos();
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [newPropertyId, setNewPropertyId] = useState<string>();
 
   return (
     <motion.div
@@ -997,6 +1004,35 @@ export default function NuevaPropiedadPage() {
           </div>
         </form>
       </FormProvider>
+
+      {showSuccessModal && (
+        <StatusModal
+          type="success"
+          title="¡Propiedad creada exitosamente!"
+          message="La propiedad ha sido creada correctamente."
+          onClose={() => setShowSuccessModal(false)}
+          actionLabel="Ver Propiedad"
+          onAction={() => {
+            router.push(
+              `/dashboard/proyectos/${projectId}/propiedades/${newPropertyId}`
+            );
+          }}
+        />
+      )}
+
+      {showErrorModal && (
+        <StatusModal
+          type="error"
+          title="Error al crear la propiedad"
+          message={errorMessage}
+          onClose={() => setShowErrorModal(false)}
+          actionLabel="Intentar nuevamente"
+          onAction={() => {
+            setShowErrorModal(false);
+            methods.handleSubmit(onSubmit);
+          }}
+        />
+      )}
     </motion.div>
   );
 } 

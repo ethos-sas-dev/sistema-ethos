@@ -137,8 +137,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
   const getUniqueActividades = () => {
     if (!project?.propiedades) return [];
     const actividades = project.propiedades
-      .map(p => p.actividad)
-      .filter((value, index, self) => 
+      .map((p: Property) => p.actividad)
+      .filter((value: string | undefined, index: number, self: (string | undefined)[]) => 
         value && self.indexOf(value) === index
       ) as string[];
     return actividades;
@@ -384,7 +384,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         </div>
         <div className="bg-white rounded-xl border p-6">
           <div className="text-3xl font-light">
-            {project.propiedades.filter(p => p.estadoUso === 'enUso').length}
+            {project.propiedades.filter((p: Property) => p.estadoUso === 'enUso').length}
           </div>
           <div className="text-gray-500 mt-1">Propiedades En Uso</div>
           {/* {isAdmin && (
@@ -395,7 +395,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
         </div>
         <div className="bg-white rounded-xl border p-6">
           <div className="text-3xl font-light">
-            {formatNumber(project.propiedades.reduce((sum, prop) => sum + (prop.areaTotal || 0), 0), false)} m²
+            {formatNumber(project.propiedades.reduce((sum: number, prop: Property) => sum + (prop.areaTotal || 0), 0), false)} m²
           </div>
           <div className="text-gray-500 mt-1">Área Total</div>
           {/* {isAdmin && (

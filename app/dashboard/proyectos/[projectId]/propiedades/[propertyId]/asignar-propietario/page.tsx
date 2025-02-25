@@ -17,6 +17,8 @@ import {
 import { useRouter } from "next/navigation";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import { DocumentUploadButton } from "@/_components/DocumentUploadButton";
+import { SimpleDocumentUpload } from "@/_components/SimpleDocumentUpload";
+import { StatusModal } from "@/_components/StatusModal";
 
 const SEARCH_PROPIETARIOS = gql`
   query BuscarPerfilesCliente($searchTerm: String!) {
@@ -140,17 +142,14 @@ const CREATE_PERFIL_CLIENTE = gql`
         email
       }
       contactoAdministrativo {
-        nombreCompleto
         telefono
         email
       }
       contactoGerente {
-        nombreCompleto
         telefono
         email
       }
       contactoProveedores {
-        nombreCompleto
         telefono
         email
       }
@@ -198,7 +197,7 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
     { ruc: '', rucPdf: null }
   ]);
 
-  // Modificar la sección del formulario para incluir todos los campos
+  // Modificar los estados de contacto
   const [contactoAccesos, setContactoAccesos] = useState({
     nombreCompleto: '',
     telefono: '',
@@ -206,19 +205,16 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
   });
 
   const [contactoAdministrativo, setContactoAdministrativo] = useState({
-    nombreCompleto: '',
     telefono: '',
     email: ''
   });
 
   const [contactoGerente, setContactoGerente] = useState({
-    nombreCompleto: '',
     telefono: '',
     email: ''
   });
 
   const [contactoProveedores, setContactoProveedores] = useState({
-    nombreCompleto: '',
     telefono: '',
     email: ''
   });
@@ -234,9 +230,9 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
 
   // Definir interfaces para los documentos
   interface DocumentoSimple {
+    documentId?: string;
     url: string;
     nombre: string;
-    fechaSubida?: string;
   }
 
   interface RucDoc {
@@ -262,13 +258,139 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
   const [asignarPropietario] = useMutation(ASIGNAR_PROPIETARIO);
   const [createPerfilCliente] = useMutation(CREATE_PERFIL_CLIENTE);
 
+  // Agregar estado para el paso actual
+  const [paso, setPaso] = useState(1);
+
+  // Agregar estado para modal de error
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+      // Función auxiliar para limpiar objetos vacíos
+      const cleanEmptyFields = (obj: any) => {
+        const cleaned = Object.entries(obj).reduce((acc: any, [key, value]) => {
+          if (value && value !== '') {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
+        return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+      };
+
+      // Limpiar los datos de contacto
+      const contactos = {
+        contactoAccesos: cleanEmptyFields(contactoAccesos),
+        contactoAdministrativo: cleanEmptyFields(contactoAdministrativo),
+        contactoGerente: cleanEmptyFields(contactoGerente),
+        contactoProveedores: cleanEmptyFields(contactoProveedores)
+      };
+
+      // Preparar los datos según el tipo de persona
+      const perfilClienteData = {
+        rol: "Propietario",
+        tipoPersona,
+        ...(tipoPersona === "Natural" ? {
+          datosPersonaNatural: {
+            cedula,
+            razonSocial: nombreCompleto,
+            ...(aplicaRuc && { ruc }),
+            ...(documentos.cedulaPdf?.documentId && { cedulaPdf: documentos.cedulaPdf.documentId }),
+            ...(aplicaRuc && documentos.rucPdf?.documentId && { rucPdf: documentos.rucPdf.documentId })
+          }
+        } : {
+          datosPersonaJuridica: {
+            razonSocial,
+            nombreComercial,
+            rucPersonaJuridica: rucsPersonaJuridica.map(ruc => ({
+              ruc: ruc.ruc,
+              ...(ruc.rucPdf?.documentId && { rucPdf: ruc.rucPdf.documentId })
+            })),
+            representanteLegalEsEmpresa: esEmpresaRepresentante,
+            ...(documentos.cedulaRepresentanteLegalPdf?.documentId && {
+              cedulaRepresentanteLegalPdf: documentos.cedulaRepresentanteLegalPdf.documentId
+            }),
+            ...(documentos.nombramientoRepresentanteLegalPdf?.documentId && {
+              nombramientoRepresentanteLegalPdf: documentos.nombramientoRepresentanteLegalPdf.documentId
+            }),
+            ...(esEmpresaRepresentante && {
+              empresaRepresentanteLegal: {
+                ...empresaRepresentanteLegal,
+                rucEmpresaRepresentanteLegal: rucsEmpresaRepresentante.map(ruc => ({
+                  ruc: ruc.ruc,
+                  ...(ruc.rucPdf?.documentId && { rucPdf: ruc.rucPdf.documentId })
+                })),
+                ...(documentos.autorizacionRepresentacionPdf?.documentId && {
+                  autorizacionRepresentacionPdf: documentos.autorizacionRepresentacionPdf.documentId
+                }),
+                ...(documentos.cedulaRepresentanteLegalEmpresaPdf?.documentId && {
+                  cedulaRepresentanteLegalPdf: documentos.cedulaRepresentanteLegalEmpresaPdf.documentId
+                })
+              }
+            })
+          }
+        }),
+        // Solo incluir los contactos que tienen datos
+        ...(contactos.contactoAccesos && { contactoAccesos: contactos.contactoAccesos }),
+        ...(contactos.contactoAdministrativo && { contactoAdministrativo: contactos.contactoAdministrativo }),
+        ...(contactos.contactoGerente && { contactoGerente: contactos.contactoGerente }),
+        ...(contactos.contactoProveedores && { contactoProveedores: contactos.contactoProveedores })
+      };
+
+      console.log('Datos a enviar:', JSON.stringify(perfilClienteData, null, 2));
+
+      // Crear el perfil del cliente
+      try {
+        const { data: perfilClienteResponse } = await createPerfilCliente({
+          variables: {
+            data: perfilClienteData
+          }
+        });
+        console.log('Respuesta:', perfilClienteResponse);
+         // Si se creó exitosamente, asignar a la propiedad
+      if (perfilClienteResponse?.createPerfilCliente?.documentId) {
+        await asignarPropietario({
+          variables: {
+            propiedadId: propertyId,
+            propietarioId: perfilClienteResponse.createPerfilCliente.documentId
+          }
+        });
+
+        // Mostrar modal de éxito
+        setShowSuccessModal(true);
+      }
+      } catch (error: any) {
+        console.error('Error detallado:', {
+          message: error.message,
+          graphQLErrors: error.graphQLErrors,
+          networkError: error.networkError,
+          extraInfo: error.extraInfo
+        });
+        throw error;
+      }
+
+     
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      let errorMessage = 'Ocurrió un error al crear el propietario.';
+      if (error.graphQLErrors) {
+        errorMessage += '\n' + error.graphQLErrors.map((e: any) => e.message).join('\n');
+      }
+      setErrorMessage(errorMessage);
+      setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="max-w-4xl mx-auto space-y-6 p-6"
     >
-      {/* Header */}
+      {/* Header con botón de retroceso */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -285,7 +407,6 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Búsqueda o Crear Nuevo */}
       {!showCreateForm ? (
         <div className="bg-white rounded-xl border p-6 space-y-6">
           {/* Buscador */}
@@ -353,7 +474,8 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
                         setShowSuccessModal(true);
                       } catch (error) {
                         console.error("Error al asignar propietario:", error);
-                        alert("Error al asignar propietario. Por favor intente nuevamente.");
+                        setErrorMessage("Error al asignar propietario. Por favor intente nuevamente.");
+                        setShowErrorModal(true);
                       }
                       setIsLoading(false);
                     }}
@@ -391,533 +513,577 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
           </div>
         </div>
       ) : (
-        // Formulario de creación
-        <div className="bg-white rounded-xl border p-6 space-y-6">
-          <div className="space-y-4">
-            {/* Tipo de persona */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Persona
-              </label>
-              <div className="flex gap-4">
-                <button
-                  className={`px-4 py-2 rounded-lg ${
-                    tipoPersona === "Natural"
-                      ? "bg-[#008A4B] text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                  onClick={() => setTipoPersona("Natural")}
-                >
-                  Persona Natural
-                </button>
-                <button
-                  className={`px-4 py-2 rounded-lg ${
-                    tipoPersona === "Juridica"
-                      ? "bg-[#008A4B] text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                  onClick={() => setTipoPersona("Juridica")}
-                >
-                  Persona Jurídica
-                </button>
-              </div>
-            </div>
+        <div className="space-y-6">
+          {/* Pasos */}
+          <div className="flex gap-2 mb-6">
+            <div className={`flex-1 h-2 rounded-full ${paso >= 1 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+            <div className={`flex-1 h-2 rounded-full ${paso >= 2 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+          </div>
 
-            {tipoPersona === "Natural" ? (
-              // Campos para persona natural
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Cédula
-                  </label>
-                  <input
-                    type="text"
-                    value={cedula}
-                    onChange={(e) => setCedula(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
+          {/* Contenido del formulario */}
+          {paso === 1 ? (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Persona
+                </label>
+                <div className="flex gap-4">
+                  <button
+                    className={`px-4 py-2 rounded-lg ${
+                      tipoPersona === "Natural"
+                        ? "bg-[#008A4B] text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                    onClick={() => setTipoPersona("Natural")}
+                  >
+                    Persona Natural
+                  </button>
+                  <button
+                    className={`px-4 py-2 rounded-lg ${
+                      tipoPersona === "Juridica"
+                        ? "bg-[#008A4B] text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                    onClick={() => setTipoPersona("Juridica")}
+                  >
+                    Persona Jurídica
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Nombre Completo
-                  </label>
-                  <input
-                    type="text"
-                    value={nombreCompleto}
-                    onChange={(e) => setNombreCompleto(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={aplicaRuc}
-                    onChange={(e) => setAplicaRuc(e.target.checked)}
-                    id="aplicaRuc"
-                  />
-                  <label htmlFor="aplicaRuc" className="text-sm text-gray-700">
-                    ¿Tiene RUC?
-                  </label>
-                </div>
-                {aplicaRuc && (
+              </div>
+
+              {/* Campos básicos según tipo de persona */}
+              {tipoPersona === "Natural" ? (
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      RUC
+                      Cédula
                     </label>
                     <input
                       type="text"
-                      value={ruc}
-                      onChange={(e) => setRuc(e.target.value)}
+                      value={cedula}
+                      onChange={(e) => setCedula(e.target.value)}
                       className="mt-1 w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
-                )}
-              </>
-            ) : (
-              // Campos para persona jurídica
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Razón Social
-                  </label>
-                  <input
-                    type="text"
-                    value={razonSocial}
-                    onChange={(e) => setRazonSocial(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Nombre Comercial
-                  </label>
-                  <input
-                    type="text"
-                    value={nombreComercial}
-                    onChange={(e) => setNombreComercial(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    RUC
-                  </label>
-                  <input
-                    type="text"
-                    value={ruc}
-                    onChange={(e) => setRuc(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={esEmpresaRepresentante}
-                    onChange={(e) => setEsEmpresaRepresentante(e.target.checked)}
-                    id="esEmpresaRepresentante"
-                  />
-                  <label
-                    htmlFor="esEmpresaRepresentante"
-                    className="text-sm text-gray-700"
-                  >
-                    ¿El representante legal es una empresa?
-                  </label>
-                </div>
-
-                {/* Mover aquí la sección de Empresa Representante Legal */}
-                {esEmpresaRepresentante ? (
-                  <div className="border rounded-lg p-4 mt-4">
-                    <h3 className="text-lg font-medium mb-4">Datos de la Empresa Representante Legal</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Nombre Comercial
-                        </label>
-                        <input
-                          type="text"
-                          value={empresaRepresentanteLegal.nombreComercial}
-                          onChange={(e) =>
-                            setEmpresaRepresentanteLegal({
-                              ...empresaRepresentanteLegal,
-                              nombreComercial: e.target.value,
-                            })
-                          }
-                          className="mt-1 w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Dirección Legal
-                        </label>
-                        <input
-                          type="text"
-                          value={empresaRepresentanteLegal.direccionLegal}
-                          onChange={(e) =>
-                            setEmpresaRepresentanteLegal({
-                              ...empresaRepresentanteLegal,
-                              direccionLegal: e.target.value,
-                            })
-                          }
-                          className="mt-1 w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Nombre del Representante Legal
-                        </label>
-                        <input
-                          type="text"
-                          value={empresaRepresentanteLegal.nombreRepresentanteLegalRL}
-                          onChange={(e) =>
-                            setEmpresaRepresentanteLegal({
-                              ...empresaRepresentanteLegal,
-                              nombreRepresentanteLegalRL: e.target.value,
-                            })
-                          }
-                          className="mt-1 w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Cédula del Representante Legal
-                        </label>
-                        <input
-                          type="text"
-                          value={empresaRepresentanteLegal.cedulaRepresentanteLegal}
-                          onChange={(e) =>
-                            setEmpresaRepresentanteLegal({
-                              ...empresaRepresentanteLegal,
-                              cedulaRepresentanteLegal: e.target.value,
-                            })
-                          }
-                          className="mt-1 w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Observaciones
-                        </label>
-                        <textarea
-                          value={empresaRepresentanteLegal.observaciones}
-                          onChange={(e) =>
-                            setEmpresaRepresentanteLegal({
-                              ...empresaRepresentanteLegal,
-                              observaciones: e.target.value,
-                            })
-                          }
-                          className="mt-1 w-full px-3 py-2 border rounded-lg"
-                          rows={3}
-                        />
-                      </div>
-
-                      {/* RUCs de la Empresa Representante */}
-                      <div className="space-y-4">
-                        <h4 className="text-base font-medium">RUCs de la Empresa Representante</h4>
-                        {rucsEmpresaRepresentante.map((rucItem, index) => (
-                          <div key={index} className="flex gap-4 items-start">
-                            <div className="flex-1">
-                              <input
-                                type="text"
-                                value={rucItem.ruc}
-                                onChange={(e) => {
-                                  const newRucs = [...rucsEmpresaRepresentante];
-                                  newRucs[index].ruc = e.target.value;
-                                  setRucsEmpresaRepresentante(newRucs);
-                                }}
-                                placeholder="Número de RUC"
-                                className="w-full px-3 py-2 border rounded-lg"
-                              />
-                            </div>
-                            <DocumentUploadButton
-                              documentType="RUC Empresa Representante"
-                              propertyId={propertyId}
-                              onUploadComplete={async (url: string, name: string) => {
-                                const newRucs = [...rucsEmpresaRepresentante];
-                                newRucs[index].rucPdf = { url, nombre: name };
-                                setRucsEmpresaRepresentante(newRucs);
-                              }}
-                              currentDocument={rucItem.rucPdf || undefined}
-                            />
-                            {index > 0 && (
-                              <Button
-                                variant="ghost"
-                                onClick={() => {
-                                  setRucsEmpresaRepresentante(rucs => rucs.filter((_, i) => i !== index));
-                                }}
-                              >
-                                <XMarkIcon className="w-5 h-5" />
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setRucsEmpresaRepresentante(rucs => [...rucs, { ruc: '', rucPdf: null }])}
-                          className="mt-2"
-                        >
-                          Agregar otro RUC
-                        </Button>
-                      </div>
-
-                      {/* Documentos de la Empresa Representante */}
-                      <div className="space-y-4">
-                        <h4 className="text-base font-medium">Documentos Requeridos</h4>
-                        <DocumentUploadButton
-                          documentType="Autorización de Representación"
-                          propertyId={propertyId}
-                          onUploadComplete={async (url: string, name: string) => {
-                            setDocumentos({
-                              ...documentos,
-                              autorizacionRepresentacionPdf: { url, nombre: name }
-                            });
-                          }}
-                          currentDocument={documentos.autorizacionRepresentacionPdf || undefined}
-                        />
-                        <DocumentUploadButton
-                          documentType="Cédula del Representante Legal"
-                          propertyId={propertyId}
-                          onUploadComplete={async (url: string, name: string) => {
-                            setDocumentos({
-                              ...documentos,
-                              cedulaRepresentanteLegalEmpresaPdf: { url, nombre: name }
-                            });
-                          }}
-                          currentDocument={documentos.cedulaRepresentanteLegalEmpresaPdf || undefined}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Cédula del Representante Legal
-                      </label>
-                      <input
-                        type="text"
-                        value={cedulaRepresentante}
-                        onChange={(e) => setCedulaRepresentante(e.target.value)}
-                        className="mt-1 w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Nombre del Representante Legal
-                      </label>
-                      <input
-                        type="text"
-                        value={nombreRepresentante}
-                        onChange={(e) => setNombreRepresentante(e.target.value)}
-                        className="mt-1 w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Información de contacto */}
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium mb-4">
-                Información de Contacto
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Correo Electrónico
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Formulario de Contactos */}
-          <div className="space-y-6">
-            {['Accesos', 'Administrativo', 'Gerente', 'Proveedores'].map((tipo) => (
-              <div key={tipo} className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-4">Contacto {tipo}</h3>
-                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Nombre Completo
                     </label>
                     <input
                       type="text"
-                      value={eval(`contacto${tipo}`).nombreCompleto}
-                      onChange={(e) => eval(`setContacto${tipo}`)({
-                        ...eval(`contacto${tipo}`),
-                        nombreCompleto: e.target.value
-                      })}
+                      value={nombreCompleto}
+                      onChange={(e) => setNombreCompleto(e.target.value)}
                       className="mt-1 w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Teléfono
+                  {/* Checkbox para RUC */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={aplicaRuc}
+                      onChange={(e) => setAplicaRuc(e.target.checked)}
+                      id="aplicaRuc"
+                    />
+                    <label htmlFor="aplicaRuc" className="text-sm text-gray-700">
+                      ¿Tiene RUC?
                     </label>
-                    <input
-                      type="tel"
-                      value={eval(`contacto${tipo}`).telefono}
-                      onChange={(e) => eval(`setContacto${tipo}`)({
-                        ...eval(`contacto${tipo}`),
-                        telefono: e.target.value
-                      })}
-                      className="mt-1 w-full px-3 py-2 border rounded-lg"
-                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Correo Electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={eval(`contacto${tipo}`).email}
-                      onChange={(e) => eval(`setContacto${tipo}`)({
-                        ...eval(`contacto${tipo}`),
-                        email: e.target.value
-                      })}
-                      className="mt-1 w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Campos repetibles para RUC (Persona Jurídica) */}
-          {tipoPersona === 'Juridica' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">RUCs de la Empresa</h3>
-              {rucsPersonaJuridica.map((rucItem, index) => (
-                <div key={index} className="flex gap-4 items-start">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={rucItem.ruc}
-                      onChange={(e) => {
-                        const newRucs = [...rucsPersonaJuridica];
-                        newRucs[index].ruc = e.target.value;
-                        setRucsPersonaJuridica(newRucs);
-                      }}
-                      placeholder="Número de RUC"
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                  <DocumentUploadButton
-                    documentType="RUC"
-                    propertyId={propertyId}
-                    onUploadComplete={async (url, name) => {
-                      const newRucs = [...rucsPersonaJuridica];
-                      newRucs[index].rucPdf = { url, nombre: name };
-                      setRucsPersonaJuridica(newRucs);
-                    }}
-                    currentDocument={rucItem.rucPdf || undefined}
-                  />
-                  {index > 0 && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setRucsPersonaJuridica(rucs => rucs.filter((_, i) => i !== index));
-                      }}
-                    >
-                      <XMarkIcon className="w-5 h-5" />
-                    </Button>
+                  {/* Campo de RUC condicional */}
+                  {aplicaRuc && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        RUC
+                      </label>
+                      <input
+                        type="text"
+                        value={ruc}
+                        onChange={(e) => setRuc(e.target.value)}
+                        className="mt-1 w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
                   )}
                 </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRucsPersonaJuridica(rucs => [...rucs, { ruc: '', rucPdf: null }])}
-                className="mt-2"
-              >
-                Agregar otro RUC
-              </Button>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Razón Social
+                    </label>
+                    <input
+                      type="text"
+                      value={razonSocial}
+                      onChange={(e) => setRazonSocial(e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nombre Comercial
+                    </label>
+                    <input
+                      type="text"
+                      value={nombreComercial}
+                      onChange={(e) => setNombreComercial(e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+
+                  {/* Mover la sección de RUCs aquí */}
+                  <div className="space-y-4">
+                    <h3 className="text-base font-medium">RUCs de la Empresa</h3>
+                    {rucsPersonaJuridica.map((rucItem, index) => (
+                      <div key={index} className="flex gap-4 items-start">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={rucItem.ruc}
+                            onChange={(e) => {
+                              const newRucs = [...rucsPersonaJuridica];
+                              newRucs[index].ruc = e.target.value;
+                              setRucsPersonaJuridica(newRucs);
+                            }}
+                            placeholder="Número de RUC"
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <SimpleDocumentUpload
+                          onUploadComplete={(documentId, url, name) => {
+                            const newRucs = [...rucsPersonaJuridica];
+                            newRucs[index].rucPdf = { 
+                              documentId,
+                              url, 
+                              nombre: name 
+                            };
+                            setRucsPersonaJuridica(newRucs);
+                          }}
+                          currentDocument={rucItem.rucPdf || undefined}
+                          label="RUC"
+                        />
+                        {index > 0 && (
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setRucsPersonaJuridica(rucs => rucs.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <XMarkIcon className="w-5 h-5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRucsPersonaJuridica(rucs => [...rucs, { ruc: '', rucPdf: null }])}
+                      className="mt-2"
+                    >
+                      + Agregar otro RUC
+                    </Button>
+                  </div>
+
+                  {/* Sección de Representante Legal */}
+                  <div className="space-y-4">
+                    <h4 className="text-base font-medium">Representante Legal</h4>
+                    
+                    {/* Checkbox empresa representante */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={esEmpresaRepresentante}
+                        onChange={(e) => setEsEmpresaRepresentante(e.target.checked)}
+                        id="esEmpresaRepresentante"
+                      />
+                      <label
+                        htmlFor="esEmpresaRepresentante"
+                        className="text-sm text-gray-700"
+                      >
+                        ¿El representante legal es una empresa?
+                      </label>
+                    </div>
+
+                    {/* Campos según tipo de representante */}
+                    {esEmpresaRepresentante ? (
+                      // Si es empresa representante
+                      <div className="border rounded-lg p-4 mt-4">
+                        <h3 className="text-lg font-medium mb-4">Datos de la Empresa Representante Legal</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Nombre Comercial
+                            </label>
+                            <input
+                              type="text"
+                              value={empresaRepresentanteLegal.nombreComercial}
+                              onChange={(e) =>
+                                setEmpresaRepresentanteLegal({
+                                  ...empresaRepresentanteLegal,
+                                  nombreComercial: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full px-3 py-2 border rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Dirección Legal
+                            </label>
+                            <input
+                              type="text"
+                              value={empresaRepresentanteLegal.direccionLegal}
+                              onChange={(e) =>
+                                setEmpresaRepresentanteLegal({
+                                  ...empresaRepresentanteLegal,
+                                  direccionLegal: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full px-3 py-2 border rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Nombre del Representante Legal Empresa RL
+                            </label>
+                            <input
+                              type="text"
+                              value={empresaRepresentanteLegal.nombreRepresentanteLegalRL}
+                              onChange={(e) =>
+                                setEmpresaRepresentanteLegal({
+                                  ...empresaRepresentanteLegal,
+                                  nombreRepresentanteLegalRL: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full px-3 py-2 border rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Cédula del Representante Legal Empresa RL
+                            </label>
+                            <input
+                              type="text"
+                              value={empresaRepresentanteLegal.cedulaRepresentanteLegal}
+                              onChange={(e) =>
+                                setEmpresaRepresentanteLegal({
+                                  ...empresaRepresentanteLegal,
+                                  cedulaRepresentanteLegal: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full px-3 py-2 border rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Observaciones
+                            </label>
+                            <textarea
+                              value={empresaRepresentanteLegal.observaciones}
+                              onChange={(e) =>
+                                setEmpresaRepresentanteLegal({
+                                  ...empresaRepresentanteLegal,
+                                  observaciones: e.target.value,
+                                })
+                              }
+                              className="mt-1 w-full px-3 py-2 border rounded-lg"
+                              rows={3}
+                            />
+                          </div>
+
+                          {/* RUCs de la Empresa Representante */}
+                          <div className="space-y-4">
+                            <h4 className="text-base font-medium">RUCs de la Empresa Representante</h4>
+                            {rucsEmpresaRepresentante.map((rucItem, index) => (
+                              <div key={index} className="flex gap-4 items-start">
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    value={rucItem.ruc}
+                                    onChange={(e) => {
+                                      const newRucs = [...rucsEmpresaRepresentante];
+                                      newRucs[index].ruc = e.target.value;
+                                      setRucsEmpresaRepresentante(newRucs);
+                                    }}
+                                    placeholder="Número de RUC"
+                                    className="w-full px-3 py-2 border rounded-lg"
+                                  />
+                                </div>
+                                <SimpleDocumentUpload
+                                  onUploadComplete={(documentId, url, name) => {
+                                    const newRucs = [...rucsEmpresaRepresentante];
+                                    newRucs[index].rucPdf = { 
+                                      documentId,
+                                      url, 
+                                      nombre: name 
+                                    };
+                                    setRucsEmpresaRepresentante(newRucs);
+                                  }}
+                                  currentDocument={rucItem.rucPdf || undefined}
+                                  label="RUC"
+                                />
+                                {index > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setRucsEmpresaRepresentante(rucs => rucs.filter((_, i) => i !== index));
+                                    }}
+                                  >
+                                    <XMarkIcon className="w-5 h-5" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setRucsEmpresaRepresentante(rucs => [...rucs, { ruc: '', rucPdf: null }])}
+                              className="mt-2"
+                            >
+                             + Agregar otro RUC
+                            </Button>
+                          </div>
+
+                          {/* Documentos de la Empresa Representante */}
+                          <div className="space-y-4">
+                            <h4 className="text-base font-medium">Documentos Requeridos</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                              <SimpleDocumentUpload
+                                onUploadComplete={(documentId, url, name) => {
+                                  setDocumentos({
+                                    ...documentos,
+                                    autorizacionRepresentacionPdf: { documentId, url, nombre: name }
+                                  });
+                                }}
+                                currentDocument={documentos.autorizacionRepresentacionPdf || undefined}
+                                label="autorización de representación"
+                              />
+                              <SimpleDocumentUpload
+                                onUploadComplete={(documentId, url, name) => {
+                                  setDocumentos({
+                                    ...documentos,
+                                    cedulaRepresentanteLegalEmpresaPdf: { documentId, url, nombre: name }
+                                  });
+                                }}
+                                currentDocument={documentos.cedulaRepresentanteLegalEmpresaPdf || undefined}
+                                label="cédula del representante legal RL"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Si es persona natural como representante
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nombre del Representante Legal
+                          </label>
+                          <input
+                            type="text"
+                            value={nombreRepresentante}
+                            onChange={(e) => setNombreRepresentante(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Cédula del Representante Legal
+                          </label>
+                          <input
+                            type="text"
+                            value={cedulaRepresentante}
+                            onChange={(e) => setCedulaRepresentante(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+
+                        {/* Documentos del Representante Legal (solo si NO es empresa) */}
+                        <div className="space-y-4">
+                          <h4 className="text-base font-medium">Documentos del Representante Legal</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <SimpleDocumentUpload
+                              onUploadComplete={(documentId, url, name) => {
+                                setDocumentos({
+                                  ...documentos,
+                                  cedulaRepresentanteLegalPdf: { documentId, url, nombre: name }
+                                });
+                              }}
+                              currentDocument={documentos.cedulaRepresentanteLegalPdf || undefined}
+                              label="cédula del representante legal"
+                            />
+                            <SimpleDocumentUpload
+                              onUploadComplete={(documentId, url, name) => {
+                                setDocumentos({
+                                  ...documentos,
+                                  nombramientoRepresentanteLegalPdf: { documentId, url, nombre: name }
+                                });
+                              }}
+                              currentDocument={documentos.nombramientoRepresentanteLegalPdf || undefined}
+                              label="nombramiento del representante legal"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Formulario de Contactos */}
+              <div className="space-y-6">
+                {['Accesos', 'Administrativo', 'Gerente', 'Proveedores'].map((tipo) => (
+                  <div key={tipo} className="border rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-4">Contacto {tipo}</h3>
+                    <div className="space-y-4">
+                      {tipo === 'Accesos' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nombre Completo
+                          </label>
+                          <input
+                            type="text"
+                            value={contactoAccesos.nombreCompleto}
+                            onChange={(e) => setContactoAccesos({
+                              ...contactoAccesos,
+                              nombreCompleto: e.target.value
+                            })}
+                            className="mt-1 w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Teléfono
+                        </label>
+                        <input
+                          type="tel"
+                          value={eval(`contacto${tipo}`).telefono}
+                          onChange={(e) => eval(`setContacto${tipo}`)({
+                            ...eval(`contacto${tipo}`),
+                            telefono: e.target.value
+                          })}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Correo Electrónico
+                        </label>
+                        <input
+                          type="email"
+                          value={eval(`contacto${tipo}`).email}
+                          onChange={(e) => eval(`setContacto${tipo}`)({
+                            ...eval(`contacto${tipo}`),
+                            email: e.target.value
+                          })}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          {/* Botones de acción */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateForm(false)}
-              className="border-gray-300"
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="bg-[#008A4B] text-white hover:bg-[#006837]"
-              onClick={() => {
-                // Lógica para crear propietario
-              }}
-            >
-              Crear y Asignar
-            </Button>
-          </div>
         </div>
       )}
 
-      {/* Modal de éxito */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                ¡Propietario asignado exitosamente!
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                El propietario ha sido vinculado correctamente a la propiedad.
-              </p>
+      {/* Botones de navegación */}
+      <div className="flex justify-between pt-6 border-t">
+        {showCreateForm && (
+          <>
+            <div className="flex gap-3">
               <Button
-                className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                variant="ghost"
                 onClick={() => {
-                  router.push(
-                    `/dashboard/proyectos/${projectId}/propiedades/${propertyId}`
-                  );
+                  setShowCreateForm(false);
+                  setPaso(1); // Reset del paso al volver a búsqueda
                 }}
+                className="text-gray-500 flex items-center gap-2"
               >
-                Volver a la Propiedad
+                <ArrowLeftIcon className="w-4 h-4" />
+                Volver a búsqueda
               </Button>
             </div>
-          </div>
-        </div>
+            <div className="flex gap-3">
+            <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="border-gray-300"
+              >
+                Cancelar
+              </Button>
+              {paso > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setPaso(p => p - 1)}
+                  className="border-gray-300"
+                >
+                  <ArrowLeftIcon className="w-4 h-4" />
+                  Anterior
+                </Button>
+              )}
+              {paso < 2 ? (
+                <Button
+                  className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                  onClick={() => setPaso(2)}
+                >
+                  Siguiente
+                </Button>
+              ) : (
+                <Button
+                  className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                      <span>Creando...</span>
+                    </div>
+                  ) : (
+                    "Crear y Asignar"
+                  )}
+                </Button>
+              )}
+              
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Modal de éxito */}
+      {showSuccessModal && (
+        <StatusModal
+          type="success"
+          title="¡Propietario asignado exitosamente!"
+          message="El propietario ha sido vinculado correctamente a la propiedad."
+          onClose={() => setShowSuccessModal(false)}
+          actionLabel="Volver a la Propiedad"
+          onAction={() => {
+            router.push(
+              `/dashboard/proyectos/${projectId}/propiedades/${propertyId}`
+            );
+          }}
+        />
+      )}
+
+      {showErrorModal && (
+        <StatusModal
+          type="error"
+          title="Error al crear el propietario"
+          message={errorMessage}
+          onClose={() => setShowErrorModal(false)}
+          actionLabel="Intentar nuevamente"
+          onAction={() => {
+            setShowErrorModal(false);
+            handleSubmit();
+          }}
+        />
       )}
     </motion.div>
   );
