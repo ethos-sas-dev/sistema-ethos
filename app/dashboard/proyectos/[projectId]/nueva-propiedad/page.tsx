@@ -390,7 +390,7 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={methods.watch(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`)}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={(checked: boolean) => {
                         methods.setValue(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`, checked);
                         if (checked) {
                           methods.setValue(`areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`, 0);
@@ -493,7 +493,7 @@ export default function NuevaPropiedadPage() {
       usarAreasDesglosadas: false,
       areaTotal: 0,
       areasDesglosadas: [],
-      estadoUso: "disponible",
+      estadoUso: "enUso",
       estadoEntrega: "noEntregado",
       estadoDeConstruccion: "terreno",
       actividad: "No_definida",
@@ -588,7 +588,8 @@ export default function NuevaPropiedadPage() {
       });
 
       if (response.data?.createPropiedad) {
-        router.push(`/dashboard/proyectos/${projectId}`);
+        //router.push(`/dashboard/proyectos/${projectId}`);
+        router.push(`/dashboard/proyectos/${projectId}/propiedades/${response.data?.createPropiedad.documentId}/asignar-propietario`);
       }
     } catch (error) {
       console.error("Error al guardar:", error);

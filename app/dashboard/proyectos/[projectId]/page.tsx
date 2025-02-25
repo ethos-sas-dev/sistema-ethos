@@ -39,6 +39,10 @@ const GET_PROJECT_DETAILS = gql`
         url
       }
       propiedades(pagination: { limit: -1 }) {
+        imagen {
+          documentId
+          url
+        }
         documentId
         identificadores {
           idSuperior
@@ -83,6 +87,7 @@ interface AlicuotaExtraordinaria {
 }
 
 interface Property {
+  imagen: any;
   documentId: string;
   identificadores: {
     idSuperior: string;
@@ -215,7 +220,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
             src={project.fotoProyecto?.url || "/ofibodega.png"}
             alt={project.nombre}
             fill
-            className="object-cover object-center object-[center_80%]"
+            className="object-cover object-center"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -311,7 +316,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                   <div className="relative h-48 bg-gray-100">
                     {project.fotoProyecto?.url ? (
                       <Image
-                        src={project.fotoProyecto.url}
+                        src={property.imagen?.url || project.fotoProyecto.url}
                         alt={`${property.identificadores.superior} ${property.identificadores.idSuperior} ${property.identificadores.inferior} ${property.identificadores.idInferior}`}
                         fill
                         className="object-cover"
