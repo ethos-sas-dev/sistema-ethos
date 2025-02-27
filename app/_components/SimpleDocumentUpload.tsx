@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { DocumentIcon } from "@heroicons/react/24/outline";
+import { DocumentIcon, EyeIcon } from "@heroicons/react/24/outline";
 import { UploadButton } from "../utils/uploadthing";
 import { gql, useMutation } from "@apollo/client";
 
@@ -66,10 +66,10 @@ export function SimpleDocumentUpload({
       <Button
         type="button"
         variant="outline"
-        className="flex items-center gap-2 text-[#008A4B]! text-sm"
+        className="flex items-center gap-2 text-blue-500 text-sm"
         onClick={() => window.open(currentDocument.url, "_blank")}
       >
-        <DocumentIcon className="w-5 h-5" />
+        <EyeIcon className="w-5 h-5 text-blue-500" />
         Ver {label}
       </Button>
     );

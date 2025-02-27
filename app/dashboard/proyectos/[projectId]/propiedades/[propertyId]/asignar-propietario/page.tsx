@@ -7,16 +7,10 @@ import {
   ArrowLeftIcon,
   MagnifyingGlassIcon,
   PlusCircleIcon,
-  UserIcon,
-  BuildingOffice2Icon,
-  PhoneIcon,
-  EnvelopeIcon,
-  DocumentIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { gql, useQuery, useMutation } from "@apollo/client";
-import { DocumentUploadButton } from "@/_components/DocumentUploadButton";
 import { SimpleDocumentUpload } from "@/_components/SimpleDocumentUpload";
 import { StatusModal } from "@/_components/StatusModal";
 
@@ -392,20 +386,23 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
       className="max-w-4xl mx-auto space-y-6 p-6"
     >
       {/* Header con botón de retroceso */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="text-gray-500"
-        >
-          <ArrowLeftIcon className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-semibold">Asignar Propietario</h1>
-          <p className="text-gray-500">
-            Busca un propietario existente o crea uno nuevo
-          </p>
+      <div className="flex items-center gap-4 justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="text-gray-500"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold">Asignar Propietario</h1>
+            <p className="text-gray-500">
+              Ingresa la información del propietario
+            </p>
+          </div>
         </div>
+        <span className="text-sm text-gray-500">Paso {paso} de 2</span>
       </div>
 
       {!showCreateForm ? (
@@ -686,6 +683,19 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
                   <div className="space-y-4">
                     <h4 className="text-base font-medium">Representante Legal</h4>
                     
+                    {/* Razón Social del Representante Legal (siempre visible) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Razón Social del Representante Legal
+                      </label>
+                      <input
+                        type="text"
+                        value={nombreRepresentante}
+                        onChange={(e) => setNombreRepresentante(e.target.value)}
+                        className="mt-1 w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+
                     {/* Checkbox empresa representante */}
                     <div className="flex items-center gap-2">
                       <input
@@ -879,17 +889,6 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
-                            Nombre del Representante Legal
-                          </label>
-                          <input
-                            type="text"
-                            value={nombreRepresentante}
-                            onChange={(e) => setNombreRepresentante(e.target.value)}
-                            className="mt-1 w-full px-3 py-2 border rounded-lg"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
                             Cédula del Representante Legal
                           </label>
                           <input
@@ -900,7 +899,7 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
                           />
                         </div>
 
-                        {/* Documentos del Representante Legal (solo si NO es empresa) */}
+                        {/* Documentos del Representante Legal */}
                         <div className="space-y-4">
                           <h4 className="text-base font-medium">Documentos del Representante Legal</h4>
                           <div className="grid grid-cols-2 gap-4">

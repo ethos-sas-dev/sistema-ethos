@@ -16,6 +16,9 @@ import {
   DocumentIcon,
   IdentificationIcon,
   XMarkIcon,
+  PencilIcon,
+  UserPlusIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { use } from "react";
@@ -32,6 +35,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../../../../../_components/ui/dialog";
+import { ImageIcon, ImageMinus } from "lucide-react";
 
 // Interfaces para los documentos
 interface Document {
@@ -737,53 +741,119 @@ export default function PropertyDetailPage({
 
   // Funciones para contar documentos del propietario
   const getRequiredDocsCount = (property: Property) => {
-    if (property.propietario?.datosPersonaJuridica) {
-      return property.propietario.datosPersonaJuridica
-        .representanteLegalEsEmpresa
-        ? 4
-        : 3;
-    } else if (property.propietario?.datosPersonaNatural) {
+    if (!property.propietario) return 0;
+    
+    // Solo contar documentos según el tipo de persona
+    if (property.propietario.tipoPersona === "Juridica" && property.propietario.datosPersonaJuridica) {
+      if (property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa) {
+        // Para persona jurídica con representante legal que es empresa:
+        // 1. Todos los RUCs de la persona jurídica (uno por cada RUC añadido)
+        // 2. Autorización de representación
+        // 3. Cédula del representante legal de la empresa RL
+        // 4. Todos los RUCs de la empresa representante legal (uno por cada RUC añadido)
+        
+        // Contar cuántos RUCs tiene la persona jurídica
+        const cantidadRucsPersonaJuridica = property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+                                          property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0 
+                                          ? property.propietario.datosPersonaJuridica.rucPersonaJuridica.length 
+                                          : 0;
+        
+        // Contar cuántos RUCs tiene la empresa representante legal
+        const cantidadRucsEmpresaRL = property.propietario.datosPersonaJuridica.empresaRepresentanteLegal && 
+                                    property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal && 
+                                    property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length > 0
+                                    ? property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length
+                                    : 0;
+        
+        return 2 + // Autorización + Cédula del representante legal de la empresa RL
+               cantidadRucsPersonaJuridica + // Todos los RUCs de persona jurídica
+               cantidadRucsEmpresaRL; // Todos los RUCs de empresa representante legal
+      } else {
+        // Para persona jurídica con representante legal que es persona natural:
+        // 1. Todos los RUCs de la persona jurídica (uno por cada RUC añadido)
+        // 2. Nombramiento de representante legal
+        // 3. Cédula del representante legal
+        
+        // Contar cuántos RUCs tiene la persona jurídica
+        const cantidadRucsPersonaJuridica = property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+                                          property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0 
+                                          ? property.propietario.datosPersonaJuridica.rucPersonaJuridica.length 
+                                          : 0;
+        
+        return 2 + // Nombramiento + Cédula del representante legal
+               cantidadRucsPersonaJuridica; // Todos los RUCs de persona jurídica
+      }
+    } else if (property.propietario.tipoPersona === "Natural" && property.propietario.datosPersonaNatural) {
+      // Para persona natural:
+      // 1. Cédula (siempre)
+      // 2. RUC (solo si aplica)
       return 1 + (property.propietario.datosPersonaNatural.aplicaRuc ? 1 : 0);
     }
     return 0;
   };
 
   const getUploadedDocsCount = (property: Property) => {
-    if (property.propietario?.datosPersonaJuridica) {
+    if (!property.propietario) return 0;
+    
+    // Solo contar documentos según el tipo de persona
+    if (property.propietario.tipoPersona === "Juridica" && property.propietario.datosPersonaJuridica) {
       const esEmpresaRL = property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa;
       
-      // Documentos base para persona jurídica
-      const docsBase = [
-        // RUCs de la empresa (al menos uno)
-        ...(property.propietario.datosPersonaJuridica.rucPersonaJuridica?.map(
-          (rucDoc) => rucDoc.rucPdf
-        ) || []),
-      ];
-
       if (esEmpresaRL) {
-        // Si el representante legal es una empresa, necesitamos 4 documentos mínimo:
-        const docsEmpresaRL = [
-          // 1. Autorización de representación
+        // Si el representante legal es una empresa
+        const docsSubidos = [
+          // Autorización de representación
           property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
-          // 2. Cédula del representante legal de la empresa RL
+          
+          // Cédula del representante legal de la empresa RL
           property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
-          // 3. RUCs de la empresa representante legal (al menos uno)
-          ...(property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
-            (rucDoc) => rucDoc.rucPdf
-          ) || []),
         ];
-        return [...docsBase, ...docsEmpresaRL].filter(Boolean).length;
+        
+        // Añadir todos los RUCs de la persona jurídica
+        if (property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+            property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0) {
+          property.propietario.datosPersonaJuridica.rucPersonaJuridica.forEach(ruc => {
+            if (ruc.rucPdf) {
+              docsSubidos.push(ruc.rucPdf);
+            }
+          });
+        }
+        
+        // Añadir todos los RUCs de la empresa representante legal
+        if (property.propietario.datosPersonaJuridica.empresaRepresentanteLegal && 
+            property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal && 
+            property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length > 0) {
+          property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.forEach(ruc => {
+            if (ruc.rucPdf) {
+              docsSubidos.push(ruc.rucPdf);
+            }
+          });
+        }
+        
+        return docsSubidos.filter(Boolean).length;
       } else {
-        // Si el representante legal es persona natural, necesitamos 3 documentos mínimo:
-        const docsPersonaNatural = [
-          // 1. Cédula del representante legal
+        // Si el representante legal es persona natural
+        const docsSubidos = [
+          // Cédula del representante legal
           property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
-          // 2. Nombramiento del representante legal
-          property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+          
+          // Nombramiento del representante legal
+          property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf
         ];
-        return [...docsBase, ...docsPersonaNatural].filter(Boolean).length;
+        
+        // Añadir todos los RUCs de la persona jurídica
+        if (property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+            property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0) {
+          property.propietario.datosPersonaJuridica.rucPersonaJuridica.forEach(ruc => {
+            if (ruc.rucPdf) {
+              docsSubidos.push(ruc.rucPdf);
+            }
+          });
+        }
+        
+        return docsSubidos.filter(Boolean).length;
       }
-    } else if (property.propietario?.datosPersonaNatural) {
+    } else if (property.propietario.tipoPersona === "Natural" && property.propietario.datosPersonaNatural) {
       const docs = [
         property.propietario.datosPersonaNatural.cedulaPdf,
         ...(property.propietario.datosPersonaNatural.aplicaRuc
@@ -1097,9 +1167,7 @@ export default function PropertyDetailPage({
                         onClick={() => setShowImageModal(true)}
                         className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                        <ImageIcon className="h-4 w-4 mr-2" />
                         Cambiar imagen
                       </button>
                       
@@ -1109,9 +1177,7 @@ export default function PropertyDetailPage({
                             onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar`)}
                             className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
+                            <PencilIcon className="h-4 w-4 mr-2" />
                             Editar Propiedad
                           </button>
                           
@@ -1120,21 +1186,26 @@ export default function PropertyDetailPage({
                               onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-propietario`)}
                               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                              </svg>
+                              <UserPlusIcon className="h-4 w-4 mr-2" />
                               Asignar Propietario
                             </button>
                           ) : (
+                            <>
                             <button 
                               onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar-propietario`)}
                               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                              </svg>
+                             <PencilIcon className="h-4 w-4 mr-2" />
                               Editar Propietario
                             </button>
+                            <button 
+                            onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-ocupante`)}
+                            className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                          >
+                            <UserPlusIcon className="h-4 w-4 mr-2" />
+                            Asignar Ocupante
+                            </button>
+                            </>
                           )}
                         </>
                       )}
@@ -1144,9 +1215,7 @@ export default function PropertyDetailPage({
                           onClick={handleRemoveImage}
                           className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-md"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          <ImageMinus className="h-4 w-4 mr-2" />
                           Eliminar imagen
                         </button>
                       )}
@@ -1679,7 +1748,7 @@ export default function PropertyDetailPage({
               </h4>
 
               {/* Información para Persona Jurídica */}
-              {property.propietario.datosPersonaJuridica && (
+              {property.propietario.tipoPersona === "Juridica" && property.propietario.datosPersonaJuridica && (
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm text-gray-500">Razón Social</p>
@@ -1826,7 +1895,7 @@ export default function PropertyDetailPage({
               )}
 
               {/* Información para Persona Natural */}
-              {property.propietario.datosPersonaNatural && (
+              {property.propietario.tipoPersona === "Natural" && property.propietario.datosPersonaNatural && (
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm text-gray-500">Nombre/Razón Social</p>
@@ -1857,7 +1926,7 @@ export default function PropertyDetailPage({
 
             {/* Listado de Documentos del Propietario */}
             <div className="space-y-4">
-              {property.propietario.datosPersonaJuridica && (
+              {property.propietario.tipoPersona === "Juridica" && property.propietario.datosPersonaJuridica && (
                 <>
                   {/* RUC de la empresa (siempre requerido para persona jurídica) */}
                   {property.propietario.datosPersonaJuridica.rucPersonaJuridica.map(
@@ -1982,7 +2051,7 @@ export default function PropertyDetailPage({
               )}
 
               {/* Mantener la parte de persona natural igual */}
-              {property.propietario.datosPersonaNatural && (
+              {property.propietario.tipoPersona === "Natural" && property.propietario.datosPersonaNatural && (
                 <>
                   {/* Cédula */}
                   <DocumentUploadButton
@@ -2027,9 +2096,20 @@ export default function PropertyDetailPage({
       </div>
 
       {/* Ocupantes */}
-      {property.ocupantes && property.ocupantes.length > 0 && (
-        <div className="bg-white rounded-xl border p-6">
-          <h2 className="text-xl font-semibold mb-6">Ocupantes</h2>
+      <div className="bg-white rounded-xl border p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold">Ocupantes</h2>
+          {Boolean(property.ocupantes?.length) && (
+            <Button
+              onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-ocupante`)}
+              className="bg-[#008A4B] text-white hover:bg-[#006837]"
+            >
+              Agregar Ocupante
+            </Button>
+          )}
+        </div>
+
+        {property.ocupantes?.length ? (
           <div className="space-y-6">
             {property.ocupantes.map((ocupante, index) => {
               // Si es propietario, solo mostrar mensaje
@@ -2056,52 +2136,116 @@ export default function PropertyDetailPage({
 
               // Calcular documentos requeridos y subidos
               const getDocumentCounts = () => {
-                if (datosPersonaJuridica) {
-                  const esEmpresaRL = datosPersonaJuridica.representanteLegalEsEmpresa;
-                  
-                  // Documentos base para persona jurídica
-                  const docsBase = [
-                    // RUCs de la empresa (al menos uno)
-                    ...(datosPersonaJuridica.rucPersonaJuridica?.map(
-                      (rucDoc) => rucDoc.rucPdf
-                    ) || []),
-                  ];
+                let totalRequired = 0;
+                let totalUploaded = 0;
 
+                // Para ocupantes con datos de persona jurídica
+                if (ocupante.datosPersonaJuridica) {
+                  const esEmpresaRL = ocupante.datosPersonaJuridica.representanteLegalEsEmpresa;
+                  
                   if (esEmpresaRL) {
-                    // Si el representante legal es una empresa, necesitamos 4 documentos mínimo:
-                    const docsEmpresaRL = [
-                      // 1. Autorización de representación
-                      datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
-                      // 2. Cédula del representante legal de la empresa RL
-                      datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
-                      // 3. RUCs de la empresa representante legal (al menos uno)
-                      ...(datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
-                        (rucDoc) => rucDoc.rucPdf
-                      ) || []),
+                    // Contar cuántos RUCs tiene la persona jurídica
+                    const cantidadRucsPersonaJuridica = ocupante.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                    
+                    // Contar cuántos RUCs tiene la empresa representante legal
+                    const cantidadRucsEmpresaRL = ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.length || 0;
+                    
+                    // Documentos requeridos
+                    totalRequired = 2 + cantidadRucsPersonaJuridica + cantidadRucsEmpresaRL;
+                    
+                    // Documentos subidos
+                    const docsSubidos = [
+                      ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                      ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                      ...(ocupante.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf),
+                      ...(ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal || []).map(ruc => ruc.rucPdf)
                     ];
-                    return { requiredDocs: 4, uploadedDocs: [...docsBase, ...docsEmpresaRL].filter(Boolean).length };
+                    
+                    totalUploaded = docsSubidos.filter(Boolean).length;
                   } else {
-                    // Si el representante legal es persona natural, necesitamos 3 documentos mínimo:
-                    const docsPersonaNatural = [
-                      // 1. Cédula del representante legal
-                      datosPersonaJuridica.cedulaRepresentanteLegalPdf,
-                      // 2. Nombramiento del representante legal
-                      datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                    // Contar cuántos RUCs tiene la persona jurídica
+                    const cantidadRucsPersonaJuridica = ocupante.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                    
+                    // Documentos requeridos
+                    totalRequired = 2 + cantidadRucsPersonaJuridica;
+                    
+                    // Documentos subidos
+                    const docsSubidos = [
+                      ocupante.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+                      ocupante.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                      ...(ocupante.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf)
                     ];
-                    return { requiredDocs: 3, uploadedDocs: [...docsBase, ...docsPersonaNatural].filter(Boolean).length };
+                    
+                    totalUploaded = docsSubidos.filter(Boolean).length;
                   }
-                } else if (datosPersonaNatural) {
-                  const requiredDocs = 1 + (datosPersonaNatural.aplicaRuc ? 1 : 0);
-                  const uploadedDocs = [
-                    datosPersonaNatural.cedulaPdf,
-                    ...(datosPersonaNatural.aplicaRuc ? [datosPersonaNatural.rucPdf] : []),
-                  ].filter(Boolean).length;
-                  return { requiredDocs, uploadedDocs };
+                } 
+                // Para ocupantes con datos de persona natural
+                else if (ocupante.datosPersonaNatural) {
+                  totalRequired = 1 + (ocupante.datosPersonaNatural.aplicaRuc ? 1 : 0);
+                  
+                  const docsSubidos = [
+                    ocupante.datosPersonaNatural.cedulaPdf,
+                    ocupante.datosPersonaNatural.aplicaRuc ? ocupante.datosPersonaNatural.rucPdf : null
+                  ];
+                  
+                  totalUploaded = docsSubidos.filter(Boolean).length;
                 }
-                return { requiredDocs: 0, uploadedDocs: 0 };
+                // Para ocupantes con perfil de cliente
+                else if (ocupante.perfilCliente) {
+                  if (ocupante.perfilCliente.datosPersonaJuridica) {
+                    const esEmpresaRL = ocupante.perfilCliente.datosPersonaJuridica.representanteLegalEsEmpresa;
+                    
+                    if (esEmpresaRL) {
+                      // Contar cuántos RUCs tiene la persona jurídica
+                      const cantidadRucsPersonaJuridica = ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                      
+                      // Contar cuántos RUCs tiene la empresa representante legal
+                      const cantidadRucsEmpresaRL = ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.length || 0;
+                      
+                      // Documentos requeridos
+                      totalRequired = 2 + cantidadRucsPersonaJuridica + cantidadRucsEmpresaRL;
+                      
+                      // Documentos subidos
+                      const docsSubidos = [
+                        ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                        ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                        ...(ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf),
+                        ...(ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal || []).map(ruc => ruc.rucPdf)
+                      ];
+                      
+                      totalUploaded = docsSubidos.filter(Boolean).length;
+                    } else {
+                      // Contar cuántos RUCs tiene la persona jurídica
+                      const cantidadRucsPersonaJuridica = ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                      
+                      // Documentos requeridos
+                      totalRequired = 2 + cantidadRucsPersonaJuridica;
+                      
+                      // Documentos subidos
+                      const docsSubidos = [
+                        ocupante.perfilCliente.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+                        ocupante.perfilCliente.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                        ...(ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf)
+                      ];
+                      
+                      totalUploaded = docsSubidos.filter(Boolean).length;
+                    }
+                  } else if (ocupante.perfilCliente.datosPersonaNatural) {
+                    totalRequired = 1 + (ocupante.perfilCliente.datosPersonaNatural.aplicaRuc ? 1 : 0);
+                    
+                    const docsSubidos = [
+                      ocupante.perfilCliente.datosPersonaNatural.cedulaPdf,
+                      ocupante.perfilCliente.datosPersonaNatural.aplicaRuc ? ocupante.perfilCliente.datosPersonaNatural.rucPdf : null
+                    ];
+                    
+                    totalUploaded = docsSubidos.filter(Boolean).length;
+                  }
+                }
+
+                return { required: totalRequired, uploaded: totalUploaded };
               };
 
-              const { requiredDocs, uploadedDocs } = getDocumentCounts();
+              const { required, uploaded } = getDocumentCounts();
 
               return (
                 <div key={index} className="border rounded-lg p-4">
@@ -2120,40 +2264,132 @@ export default function PropertyDetailPage({
                         </p>
                       )}
                     </div>
-                    {/* Progress Indicator for Occupant Documents */}
-                    {requiredDocs > 0 && (
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          {uploadedDocs === requiredDocs ? (
-                            <div className="flex items-center gap-2 text-[#008A4B]">
-                              <CheckmarkIcon />
-                              <span className="text-sm font-medium">
-                                Completo
-                              </span>
+                    <div className="flex items-center gap-4">
+                      {/* Progress Indicator for Occupant Documents */}
+                      {(() => {
+                        let totalRequired = 0;
+                        let totalUploaded = 0;
+
+                        // Para ocupantes con datos de persona jurídica
+                        if (ocupante.datosPersonaJuridica) {
+                          const esEmpresaRL = ocupante.datosPersonaJuridica.representanteLegalEsEmpresa;
+                          
+                          if (esEmpresaRL) {
+                            // Contar cuántos RUCs tiene la persona jurídica
+                            const cantidadRucsPersonaJuridica = ocupante.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                            
+                            // Contar cuántos RUCs tiene la empresa representante legal
+                            const cantidadRucsEmpresaRL = ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.length || 0;
+                            
+                            // Documentos requeridos
+                            totalRequired = 2 + cantidadRucsPersonaJuridica + cantidadRucsEmpresaRL;
+                            
+                            // Documentos subidos
+                            const docsSubidos = [
+                              ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                              ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                              ...(ocupante.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf),
+                              ...(ocupante.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal || []).map(ruc => ruc.rucPdf)
+                            ];
+                            
+                            totalUploaded = docsSubidos.filter(Boolean).length;
+                          } else {
+                            // Contar cuántos RUCs tiene la persona jurídica
+                            const cantidadRucsPersonaJuridica = ocupante.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                            
+                            // Documentos requeridos
+                            totalRequired = 2 + cantidadRucsPersonaJuridica;
+                            
+                            // Documentos subidos
+                            const docsSubidos = [
+                              ocupante.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+                              ocupante.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                              ...(ocupante.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf)
+                            ];
+                            
+                            totalUploaded = docsSubidos.filter(Boolean).length;
+                          }
+                        } 
+                        // Para ocupantes con datos de persona natural
+                        else if (ocupante.datosPersonaNatural) {
+                          totalRequired = 1 + (ocupante.datosPersonaNatural.aplicaRuc ? 1 : 0);
+                          
+                          const docsSubidos = [
+                            ocupante.datosPersonaNatural.cedulaPdf,
+                            ocupante.datosPersonaNatural.aplicaRuc ? ocupante.datosPersonaNatural.rucPdf : null
+                          ];
+                          
+                          totalUploaded = docsSubidos.filter(Boolean).length;
+                        }
+                        // Para ocupantes con perfil de cliente
+                        else if (ocupante.perfilCliente) {
+                          if (ocupante.perfilCliente.datosPersonaJuridica) {
+                            const esEmpresaRL = ocupante.perfilCliente.datosPersonaJuridica.representanteLegalEsEmpresa;
+                            
+                            if (esEmpresaRL) {
+                              // Contar cuántos RUCs tiene la persona jurídica
+                              const cantidadRucsPersonaJuridica = ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                              
+                              // Contar cuántos RUCs tiene la empresa representante legal
+                              const cantidadRucsEmpresaRL = ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.length || 0;
+                              
+                              // Documentos requeridos
+                              totalRequired = 2 + cantidadRucsPersonaJuridica + cantidadRucsEmpresaRL;
+                              
+                              // Documentos subidos
+                              const docsSubidos = [
+                                ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+                                ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
+                                ...(ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf),
+                                ...(ocupante.perfilCliente.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal || []).map(ruc => ruc.rucPdf)
+                              ];
+                              
+                              totalUploaded = docsSubidos.filter(Boolean).length;
+                            } else {
+                              // Contar cuántos RUCs tiene la persona jurídica
+                              const cantidadRucsPersonaJuridica = ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica?.length || 0;
+                              
+                              // Documentos requeridos
+                              totalRequired = 2 + cantidadRucsPersonaJuridica;
+                              
+                              // Documentos subidos
+                              const docsSubidos = [
+                                ocupante.perfilCliente.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+                                ocupante.perfilCliente.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
+                                ...(ocupante.perfilCliente.datosPersonaJuridica.rucPersonaJuridica || []).map(ruc => ruc.rucPdf)
+                              ];
+                              
+                              totalUploaded = docsSubidos.filter(Boolean).length;
+                            }
+                          } else if (ocupante.perfilCliente.datosPersonaNatural) {
+                            totalRequired = 1 + (ocupante.perfilCliente.datosPersonaNatural.aplicaRuc ? 1 : 0);
+                            
+                            const docsSubidos = [
+                              ocupante.perfilCliente.datosPersonaNatural.cedulaPdf,
+                              ocupante.perfilCliente.datosPersonaNatural.aplicaRuc ? ocupante.perfilCliente.datosPersonaNatural.rucPdf : null
+                            ];
+                            
+                            totalUploaded = docsSubidos.filter(Boolean).length;
+                          }
+                        }
+
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-600">
+                              <b>{totalUploaded}/{totalRequired}</b>  documentos subidos
                             </div>
-                          ) : (
-                            <>
-                              <div className="text-sm font-medium">
-                                {`${uploadedDocs}/${requiredDocs}`}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                documentos subidos
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-[#008A4B]"
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${(uploadedDocs / requiredDocs) * 100}%`,
-                            }}
-                            transition={{ duration: 0.5 }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                            <div className="w-24 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-[#008A4B] h-2 rounded-full"
+                                style={{
+                                  width: `${(totalUploaded / totalRequired) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   {/* Información detallada del ocupante */}
@@ -2552,8 +2788,24 @@ export default function PropertyDetailPage({
               );
             })}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-8">
+            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay ocupantes</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Asigna un ocupante a esta propiedad para comenzar.
+            </p>
+            <div className="mt-6">
+              <Button
+                onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-ocupante`)}
+                className="bg-[#008A4B] text-white hover:bg-[#006837]"
+              >
+                Asignar Ocupante
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Solicitudes Recientes */}
       {property.solicitudes && property.solicitudes.length > 0 && (

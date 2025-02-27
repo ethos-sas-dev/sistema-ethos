@@ -13,6 +13,7 @@ import { gql, useMutation, useQuery } from "@apollo/client";
 import { StatusModal } from "@/_components/StatusModal";
 import { useProject } from "@/dashboard/_hooks/useProject";
 import Image from "next/image";
+import { SimpleDocumentUpload } from "@/_components/SimpleDocumentUpload";
 
 // Constantes (las mismas que en la página de creación)
 const IDENTIFICADORES_SUPERIOR = [
@@ -532,14 +533,15 @@ function AreasDesglosadas({ methods }: { methods: any }) {
 
 // Página principal
 export default function EditarPropiedadPage() {
-  const [paso, setPaso] = useState(1);
   const router = useRouter();
-  const { projectId, propertyId } = useParams();
-  const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
-  
+  const params = useParams();
+  const [paso, setPaso] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { projectId, propertyId } = params;
+  const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
   
   // Consulta para obtener los detalles de la propiedad
   const { data: propertyData, loading } = useQuery(GET_PROPERTY_DETAILS, {
@@ -665,12 +667,8 @@ export default function EditarPropiedadPage() {
   };
 
   const onSubmit = async (data: PropertyFormData) => {
-    if (paso === 1) {
-      setPaso(2);
-      return;
-    }
-    if (paso === 2) {
-      setPaso(3);
+    if (paso < 3) {
+      setPaso(paso + 1);
       return;
     }
 
@@ -703,12 +701,12 @@ export default function EditarPropiedadPage() {
         montoFondoInicial: fondoInicial,
         montoAlicuotaOrdinaria: alicuotaOrdinaria,
         pagos: {
-          create: [{
-            encargadoDePago: data.encargadoDePago
-          }]
+          encargadoDePago: data.encargadoDePago,
+          // fechaExpiracionEncargadoDePago: new Date().toISOString()
         }
       };
       
+      setIsLoading(true);
       const response = await actualizarPropiedad({
         variables: {
           documentId: propertyId,
@@ -727,6 +725,8 @@ export default function EditarPropiedadPage() {
       console.error("Error al actualizar:", error);
       setErrorMessage(error.message || "Ha ocurrido un error al actualizar la propiedad");
       setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -743,11 +743,12 @@ export default function EditarPropiedadPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-3xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-4xl mx-auto space-y-6 p-6"
     >
-      <div className="flex items-center justify-between">
+      {/* Header con botón de retroceso */}
+      <div className="flex items-center gap-4 justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -756,11 +757,21 @@ export default function EditarPropiedadPage() {
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-semibold">Editar Propiedad</h1>
+          <div>
+            <h1 className="text-2xl font-semibold">Editar Propiedad</h1>
+            <p className="text-gray-500">
+              Modifica la información de la propiedad
+            </p>
+          </div>
         </div>
-        <div className="text-sm text-gray-500">
-          Paso {paso} de 3
-        </div>
+        <span className="text-sm text-gray-500">Paso {paso} de 3</span>
+      </div>
+
+      {/* Indicador de progreso */}
+      <div className="flex gap-2 mb-6">
+        <div className={`flex-1 h-2 rounded-full ${paso >= 1 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+        <div className={`flex-1 h-2 rounded-full ${paso >= 2 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+        <div className={`flex-1 h-2 rounded-full ${paso >= 3 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
       </div>
 
       <FormProvider {...methods}>
@@ -873,72 +884,20 @@ export default function EditarPropiedadPage() {
                 </div>
 
                 {/* Escritura */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Escritura
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <UploadButton
-                      endpoint="propertyDocument"
-                      onClientUploadComplete={async (res) => {
-                        if (res && res[0]) {
-                          try {
-                            const { data } = await crearArchivo({
-                              variables: {
-                                data: {
-                                  nombre: res[0].name,
-                                  url: res[0].ufsUrl,
-                                  tipoArchivo: "pdf",
-                                  fechaSubida: new Date().toISOString()
-                                }
-                              }
-                            });
-
-                            if (data?.createArchivo) {
-                              methods.setValue("documentoEscritura", data.createArchivo);
-                            }
-                          } catch (error) {
-                            console.error("Error al crear el archivo:", error);
-                          }
-                        }
-                      }}
-                      onUploadError={(error: Error) => {
-                        console.error("Error uploading:", error);
-                      }}
-                      appearance={{
-                        button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
-                        allowedContent: "hidden"
-                      }}
-                      content={{
-                        button({ ready }) {
-                          if (ready) {
-                            return (
-                              <>
-                                <DocumentArrowUpIcon className="w-4 h-4" />
-                                <span>Subir archivo</span>
-                              </>
-                            );
-                          }
-                          return "Cargando...";
-                        }
-                      }}
-                    />
-                    {methods.watch("documentoEscritura") && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-green-600">
-                          ✓ Archivo subido: {methods.watch("documentoEscritura.nombre")}
-                        </span>
-                        <a 
-                          href={methods.watch("documentoEscritura.url")} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-500 hover:underline"
-                        >
-                          Ver
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                <div className="space-y-4">
+                  <h3 className="text-base font-medium">Escritura</h3>
+                  <SimpleDocumentUpload
+                    onUploadComplete={(documentId, url, name) => {
+                      methods.setValue("documentoEscritura", {
+                        documentId,
+                        url,
+                        nombre: name,
+                        fechaSubida: new Date().toISOString()
+                      });
+                    }}
+                    currentDocument={methods.watch("documentoEscritura")}
+                    label="escritura"
+                  />
                 </div>
               </div>
             )}
@@ -993,72 +952,20 @@ export default function EditarPropiedadPage() {
                 </div>
 
                 {methods.watch("estadoEntrega") === "entregado" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Acta de Entrega
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <UploadButton
-                        endpoint="propertyDocument"
-                        onClientUploadComplete={async (res) => {
-                          if (res && res[0]) {
-                            try {
-                              const { data } = await crearArchivo({
-                                variables: {
-                                  data: {
-                                    nombre: res[0].name,
-                                    url: res[0].ufsUrl,
-                                    tipoArchivo: "pdf",
-                                    fechaSubida: new Date().toISOString()
-                                  }
-                                }
-                              });
-
-                              if (data?.createArchivo) {
-                                methods.setValue("actaEntregaPdf", data.createArchivo);
-                              }
-                            } catch (error) {
-                              console.error("Error al crear el archivo:", error);
-                            }
-                          }
-                        }}
-                        onUploadError={(error: Error) => {
-                          console.error("Error uploading:", error);
-                        }}
-                        appearance={{
-                          button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
-                          allowedContent: "hidden"
-                        }}
-                        content={{
-                          button({ ready }) {
-                            if (ready) {
-                              return (
-                                <>
-                                  <DocumentArrowUpIcon className="w-4 h-4" />
-                                  <span>Subir archivo</span>
-                                </>
-                              );
-                            }
-                            return "Cargando...";
-                          }
-                        }}
-                      />
-                      {methods.watch("actaEntregaPdf") && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-green-600">
-                            ✓ Archivo subido: {methods.watch("actaEntregaPdf.nombre")}
-                          </span>
-                          <a 
-                            href={methods.watch("actaEntregaPdf.url")} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-500 hover:underline"
-                          >
-                            Ver
-                          </a>
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-4">
+                    <h3 className="text-base font-medium">Acta de Entrega</h3>
+                    <SimpleDocumentUpload
+                      onUploadComplete={(documentId, url, name) => {
+                        methods.setValue("actaEntregaPdf", {
+                          documentId,
+                          url,
+                          nombre: name,
+                          fechaSubida: new Date().toISOString()
+                        });
+                      }}
+                      currentDocument={methods.watch("actaEntregaPdf")}
+                      label="acta de entrega"
+                    />
                   </div>
                 )}
 
@@ -1186,24 +1093,59 @@ export default function EditarPropiedadPage() {
             )}
           </div>
 
-          <div className="flex justify-between">
-            {paso > 1 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPaso(p => p - 1)}
-              >
-                <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                Anterior
-              </Button>
-            )}
-            
+          {/* Botones de navegación */}
+          <div className="flex justify-between pt-6 border-t">
             <Button
-              type="submit"
-              className="ml-auto"
+              variant="ghost"
+              onClick={() => router.back()}
+              className="text-gray-500"
             >
-              {paso < 3 ? "Siguiente" : "Guardar Cambios"}
+              <ArrowLeftIcon className="w-5 h-5 mr-2" />
+              Volver
             </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="border-gray-300"
+              >
+                Cancelar
+              </Button>
+              {paso > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPaso(paso - 1)}
+                  className="border-gray-300"
+                >
+                  <ArrowLeftIcon className="w-4 h-4 mr-2" />
+                  Anterior
+                </Button>
+              )}
+              {paso < 3 ? (
+                <Button
+                  type="submit"
+                  className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                >
+                  Siguiente
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                      <span>Guardando...</span>
+                    </div>
+                  ) : (
+                    "Guardar Cambios"
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </FormProvider>

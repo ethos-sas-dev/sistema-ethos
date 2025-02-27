@@ -168,10 +168,11 @@ const menuItems: Record<UserRole, Array<{ label: string; icon: any; href: string
   ]
 }
 
-function Sidebar({ items, role, logout }: { 
+function Sidebar({ items, role, logout, user }: { 
   items: typeof menuItems[UserRole]
   role: UserRole
-  logout: () => void 
+  logout: () => void
+  user: any
 }) {
   const pathname = usePathname()
 
@@ -193,7 +194,7 @@ function Sidebar({ items, role, logout }: {
             priority 
           />
           <div className="flex flex-col">
-            <span className="font-semibold text-xl tracking-tight">Ethos</span>
+            <span className="font-semibold text-sm tracking-tight truncate max-w-[180px]">{user?.email}</span>
             <span className="text-sm text-white/70">{role}</span>
           </div>
         </div>
@@ -274,7 +275,7 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute>
       <div className="flex min-h-screen bg-white">
-        <Sidebar items={menuItems[role]} role={role} logout={logout} />
+        <Sidebar items={menuItems[role]} role={role} logout={logout} user={user} />
         <div className="flex-1 ml-[294px]">
           <main className="p-8">{children}</main>
         </div>

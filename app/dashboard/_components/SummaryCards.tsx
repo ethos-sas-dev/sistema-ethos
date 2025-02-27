@@ -281,28 +281,105 @@ export function SummaryCards({ role }: SummaryCardsProps) {
       // Documentos del propietario
       if (property.propietario?.datosPersonaJuridica) {
         const isEmpresaRL = property.propietario.datosPersonaJuridica.representanteLegalEsEmpresa;
-        const propietarioRequiredDocs = isEmpresaRL ? 6 : 3;
         
-        let propietarioUploadedDocs = [
-          property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
-          property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf,
-          ...(property.propietario.datosPersonaJuridica.rucPersonaJuridica?.map(
-            (rucDoc) => rucDoc.rucPdf
-          ) || [])
-        ].filter(Boolean).length;
-
+        // Calcular documentos requeridos
         if (isEmpresaRL) {
-          propietarioUploadedDocs += [
+          // Para persona jurídica con representante legal que es empresa:
+          // 1. Todos los RUCs de la persona jurídica (uno por cada RUC añadido)
+          // 2. Autorización de representación
+          // 3. Cédula del representante legal de la empresa RL
+          // 4. Todos los RUCs de la empresa representante legal (uno por cada RUC añadido)
+          
+          // Contar cuántos RUCs tiene la persona jurídica
+          const cantidadRucsPersonaJuridica = property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+                                                property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0 
+                                                ? property.propietario.datosPersonaJuridica.rucPersonaJuridica.length 
+                                                : 0;
+          
+          // Contar cuántos RUCs tiene la empresa representante legal
+          const cantidadRucsEmpresaRL = property.propietario.datosPersonaJuridica.empresaRepresentanteLegal && 
+                                          property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal && 
+                                          property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length > 0
+                                          ? property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length
+                                          : 0;
+          
+          const propietarioRequiredDocs = 2 + // Autorización + Cédula del representante legal de la empresa RL
+                                        cantidadRucsPersonaJuridica + // Todos los RUCs de persona jurídica
+                                        cantidadRucsEmpresaRL; // Todos los RUCs de empresa representante legal
+          
+          // Documentos subidos
+          const docsSubidos = [
+            // Autorización de representación
             property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.autorizacionRepresentacionPdf,
+            
+            // Cédula del representante legal de la empresa RL
             property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.cedulaRepresentanteLegalPdf,
-            ...(property.propietario.datosPersonaJuridica.empresaRepresentanteLegal?.rucEmpresaRepresentanteLegal?.map(
-              (rucDoc) => rucDoc.rucPdf
-            ) || [])
-          ].filter(Boolean).length;
+          ];
+          
+          // Añadir todos los RUCs de la persona jurídica
+          if (property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+              property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0) {
+            property.propietario.datosPersonaJuridica.rucPersonaJuridica.forEach(ruc => {
+              if (ruc.rucPdf) {
+                docsSubidos.push(ruc.rucPdf);
+              }
+            });
+          }
+          
+          // Añadir todos los RUCs de la empresa representante legal
+          if (property.propietario.datosPersonaJuridica.empresaRepresentanteLegal && 
+              property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal && 
+              property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.length > 0) {
+            property.propietario.datosPersonaJuridica.empresaRepresentanteLegal.rucEmpresaRepresentanteLegal.forEach(ruc => {
+              if (ruc.rucPdf) {
+                docsSubidos.push(ruc.rucPdf);
+              }
+            });
+          }
+          
+          const propietarioUploadedDocs = docsSubidos.filter(Boolean).length;
+          
+          totalRequiredDocs += propietarioRequiredDocs;
+          totalUploadedDocs += propietarioUploadedDocs;
+        } else {
+          // Para persona jurídica con representante legal que es persona natural:
+          // 1. Todos los RUCs de la persona jurídica (uno por cada RUC añadido)
+          // 2. Nombramiento de representante legal
+          // 3. Cédula del representante legal
+          
+          // Contar cuántos RUCs tiene la persona jurídica
+          const cantidadRucsPersonaJuridica = property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+                                                property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0 
+                                                ? property.propietario.datosPersonaJuridica.rucPersonaJuridica.length 
+                                                : 0;
+          
+          const propietarioRequiredDocs = 2 + // Nombramiento + Cédula del representante legal
+                                        cantidadRucsPersonaJuridica; // Todos los RUCs de persona jurídica
+          
+          // Documentos subidos
+          const docsSubidos = [
+            // Cédula del representante legal
+            property.propietario.datosPersonaJuridica.cedulaRepresentanteLegalPdf,
+            
+            // Nombramiento del representante legal
+            property.propietario.datosPersonaJuridica.nombramientoRepresentanteLegalPdf
+          ];
+          
+          // Añadir todos los RUCs de la persona jurídica
+          if (property.propietario.datosPersonaJuridica.rucPersonaJuridica && 
+              property.propietario.datosPersonaJuridica.rucPersonaJuridica.length > 0) {
+            property.propietario.datosPersonaJuridica.rucPersonaJuridica.forEach(ruc => {
+              if (ruc.rucPdf) {
+                docsSubidos.push(ruc.rucPdf);
+              }
+            });
+          }
+          
+          const propietarioUploadedDocs = docsSubidos.filter(Boolean).length;
+          
+          totalRequiredDocs += propietarioRequiredDocs;
+          totalUploadedDocs += propietarioUploadedDocs;
         }
-
-        totalRequiredDocs += propietarioRequiredDocs;
-        totalUploadedDocs += propietarioUploadedDocs;
       } else if (property.propietario?.datosPersonaNatural) {
         const propietarioRequiredDocs = 1 + (property.propietario.datosPersonaNatural.aplicaRuc ? 1 : 0);
         const propietarioUploadedDocs = [
