@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "../../../../../_components/ui/button";
@@ -15,6 +15,7 @@ import {
   ClipboardDocumentListIcon,
   DocumentIcon,
   IdentificationIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { use } from "react";
@@ -22,12 +23,22 @@ import { useAuth } from "../../../../../_lib/auth/AuthContext";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import Image from "next/image";
 import { DocumentUploadButton } from "../../../../../_components/DocumentUploadButton";
+import { UploadButton } from "../../../../../utils/uploadthing";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../../../../../_components/ui/dialog";
 
 // Interfaces para los documentos
 interface Document {
   url: string;
   fechaSubida: string;
   nombre: string;
+  id: string;
 }
 
 interface ContactInfo {
@@ -665,6 +676,15 @@ interface PageProps {
   searchParams: Promise<{ from?: string }>;
 }
 
+// Mutación para actualizar una propiedad
+const UPDATE_PROPERTY_MUTATION = gql`
+  mutation ActualizarPropiedad($documentId: ID!, $data: PropiedadInput!) {
+    updatePropiedad(documentId: $documentId, data: $data) {
+      documentId
+    }
+  }
+`;
+
 export default function PropertyDetailPage({
   params,
   searchParams,
@@ -683,6 +703,10 @@ export default function PropertyDetailPage({
   });
   console.log(data?.propiedad.ocupantes);
   const [crearArchivo] = useMutation(CREATE_ARCHIVO);
+  const [updateProperty] = useMutation(UPDATE_PROPERTY_MUTATION);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   if (loading) {
     return (
@@ -945,6 +969,69 @@ export default function PropertyDetailPage({
     return property.propietario;
   };
 
+  const handleRemoveImage = async () => {
+    if (!property?.documentId) return;
+    
+    if (confirm("¿Estás seguro de eliminar la imagen de la propiedad?")) {
+      setShowLoading(true);
+      try {
+        await updateProperty({
+          variables: {
+            documentId: property.documentId,
+            data: {
+              imagen: null
+            }
+          }
+        });
+        
+        // Refrescar los datos después de eliminar la imagen
+        refetch();
+      } catch (error) {
+        console.error("Error al eliminar la imagen:", error);
+      } finally {
+        setShowLoading(false);
+      }
+    }
+  };
+
+  // Función para cambiar la imagen
+  const handleChangeImage = async (url: string, name: string) => {
+    if (!property?.documentId) return;
+    
+    setUploadingImage(true);
+    try {
+      const { data: fileData } = await crearArchivo({
+        variables: {
+          data: {
+            nombre: name,
+            url: url,
+            tipoArchivo: "imagen",
+            fechaSubida: new Date().toISOString()
+          }
+        }
+      });
+
+      if (fileData?.createArchivo) {
+        await updateProperty({
+          variables: {
+            documentId: property.documentId,
+            data: {
+              imagen: fileData.createArchivo.documentId
+            }
+          }
+        });
+        
+        // Refrescar los datos después de cambiar la imagen
+        refetch();
+        setShowImageModal(false);
+      }
+    } catch (error) {
+      console.error("Error al cambiar la imagen:", error);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -953,7 +1040,7 @@ export default function PropertyDetailPage({
     >
       {/* Banner y detalles principales */}
       <div className="bg-white rounded-xl border overflow-hidden">
-        <div className="relative h-64">
+        <div className="relative h-64 w-full">
           <Link
             href={
               from === "propietarios"
@@ -972,38 +1059,105 @@ export default function PropertyDetailPage({
           </Link>
           {isAdmin && (
             <div className="absolute top-6 right-6 z-10 flex gap-2">
-              {!property.propietario && (
-                <Button
-                  className="bg-[#008A4B] hover:bg-[#006837] text-white"
-                  onClick={() =>
-                    router.push(
-                      `/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-propietario`
-                    )
-                  }
-                >
-                  Asignar Propietario
-                </Button>
-              )}
-              <Button
-                className="bg-[#008A4B] hover:bg-[#006837] text-white"
-                onClick={() =>
-                  router.push(
-                    `/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar`
-                  )
-                }
-              >
-                Editar Propiedad
-              </Button>
+              {/* Se elimina el botón de Asignar Propietario de aquí */}
             </div>
           )}
-          <Image
-            src={property.imagen?.url || "/ofibodega.png"}
-            alt={`${property.identificadores.superior} ${property.identificadores.idSuperior}`}
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="relative">
+            {property.imagen?.url ? (
+              <div className="h-64 w-full">
+                <Image
+                  src={property.imagen.url}
+                  alt={`${property.identificadores.superior} ${property.identificadores.idSuperior}`}
+                  width={1200}
+                  height={256}
+                  className="w-full h-full object-cover"
+                  priority
+                />
+              </div>
+            ) : (
+              <div className="w-full min-h-[250px] flex items-center justify-center bg-gray-50">
+                <BuildingOffice2Icon className="w-16 h-16 text-gray-400" />
+              </div>
+            )}
+            
+            {/* Menú de opciones para la imagen */}
+            {role !== "Propietario" && (
+              <div className="absolute top-4 right-4 z-10">
+                <div className="relative group">
+                  <button className="bg-white/90 hover:bg-white rounded-full p-2 transition-all shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="19" cy="12" r="1" />
+                      <circle cx="5" cy="12" r="1" />
+                    </svg>
+                  </button>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                    <div className="p-1">
+                      <button 
+                        onClick={() => setShowImageModal(true)}
+                        className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Cambiar imagen
+                      </button>
+                      
+                      {isAdmin && (
+                        <>
+                          <button 
+                            onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar`)}
+                            className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Editar Propiedad
+                          </button>
+                          
+                          {!property.propietario ? (
+                            <button 
+                              onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-propietario`)}
+                              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                              </svg>
+                              Asignar Propietario
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar-propietario`)}
+                              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              Editar Propietario
+                            </button>
+                          )}
+                        </>
+                      )}
+                      
+                      {property.imagen && (
+                        <button 
+                          onClick={handleRemoveImage}
+                          className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-md"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Eliminar imagen
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          </div>
           <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
             <div className="flex justify-between items-end">
               <div>
@@ -2029,14 +2183,7 @@ export default function PropertyDetailPage({
                               </p>
                             </div>
                           )}
-                        {/* {datosPersonaJuridica.nombreComercial && (
-                          <div>
-                            <p className="text-sm text-gray-500">Nombre Comercial</p>
-                            <p className="text-sm font-medium">
-                              {datosPersonaJuridica.nombreComercial}
-                            </p>
-                          </div>
-                        )} */}
+                        {/* Nombre Comercial (oculto) */}
 
                         {/* Información del Representante Legal */}
                         <div className="mt-4 pt-4 border-t">
@@ -2639,6 +2786,66 @@ export default function PropertyDetailPage({
             <p className="text-gray-500">No hay adecuaciones registradas</p>
           )}
         </div> */}
+      
+      {/* Modal para cambiar la imagen */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambiar imagen de la propiedad</DialogTitle>
+            <DialogDescription>
+              Sube una nueva imagen para la propiedad.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {property.imagen?.url && (
+              <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-200 mb-4">
+                <Image 
+                  src={property.imagen.url}
+                  alt="Imagen actual"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <span className="text-white text-sm">Imagen actual</span>
+                </div>
+              </div>
+            )}
+            
+            <UploadButton
+              endpoint="propertyImage"
+              onClientUploadComplete={async (res) => {
+                if (res && res[0]) {
+                  await handleChangeImage(res[0].ufsUrl, res[0].name);
+                }
+              }}
+              onUploadError={(error: Error) => {
+                console.error("Error uploading:", error);
+              }}
+              appearance={{
+                button: "w-full border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center justify-center gap-2",
+                allowedContent: "hidden"
+              }}
+              content={{
+                button({ ready }) {
+                  if (ready) {
+                    return (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
+                        </svg>
+                        <span>{uploadingImage ? "Subiendo..." : "Subir nueva imagen"}</span>
+                      </>
+                    );
+                  }
+                  return "Cargando...";
+                }
+              }}
+              disabled={uploadingImage}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

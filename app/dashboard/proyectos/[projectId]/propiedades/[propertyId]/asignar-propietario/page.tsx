@@ -201,7 +201,8 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
   const [contactoAccesos, setContactoAccesos] = useState({
     nombreCompleto: '',
     telefono: '',
-    email: ''
+    email: '',
+    cedula: ''
   });
 
   const [contactoAdministrativo, setContactoAdministrativo] = useState({
@@ -983,6 +984,22 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
                           className="mt-1 w-full px-3 py-2 border rounded-lg"
                         />
                       </div>
+                      {tipo === 'Accesos' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Cédula
+                          </label>
+                          <input
+                            type="text"
+                            value={contactoAccesos.cedula}
+                            onChange={(e) => setContactoAccesos({
+                              ...contactoAccesos,
+                              cedula: e.target.value
+                            })}
+                            className="mt-1 w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

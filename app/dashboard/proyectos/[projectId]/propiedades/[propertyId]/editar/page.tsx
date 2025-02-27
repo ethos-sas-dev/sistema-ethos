@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/_components/ui/button";
@@ -14,7 +14,7 @@ import { StatusModal } from "@/_components/StatusModal";
 import { useProject } from "@/dashboard/_hooks/useProject";
 import Image from "next/image";
 
-// Constantes
+// Constantes (las mismas que en la página de creación)
 const IDENTIFICADORES_SUPERIOR = [
   { value: "Manzana", label: "Manzana" },
   { value: "Bloque", label: "Bloque" },
@@ -123,6 +123,7 @@ const ENCARGADOS_PAGO = [
   { value: "Arrendatario", label: "Arrendatario" }
 ] as const;
 
+// Queries y mutaciones GraphQL
 const CREATE_ARCHIVO = gql`
   mutation CreateArchivo($data: ArchivoInput!) {
     createArchivo(data: $data) {
@@ -135,9 +136,70 @@ const CREATE_ARCHIVO = gql`
   }
 `;
 
-const CREATE_PROPIEDAD = gql`
-  mutation CreatePropiedad($data: PropiedadInput!) {
-    createPropiedad(data: $data) {
+// Query para obtener los detalles de la propiedad a editar
+const GET_PROPERTY_DETAILS = gql`
+  query Propiedad($documentId: ID!) {
+    propiedad(documentId: $documentId) {
+      imagen {
+        documentId
+        nombre
+        url
+        fechaSubida
+      }
+      pagos {
+        encargadoDePago
+        fechaExpiracionEncargadoDePago
+      }
+      actividad
+      proyecto {
+        documentId
+        nombre
+        tasaBaseFondoInicial
+        tasaBaseAlicuotaOrdinaria
+      }
+      actaEntregaPdf {
+        documentId
+        url
+        fechaSubida
+        nombre
+      }
+      areaTotal
+      areasDesglosadas {
+        id
+        area
+        tasaAlicuotaOrdinariaEspecial
+        tipoDeArea
+        nombreAdicional
+        tieneTasaAlicuotaOrdinariaEspecial
+      }
+      codigoCatastral
+      documentId
+      escrituraPdf {
+        documentId
+        url
+        nombre
+        fechaSubida
+      }
+      estadoDeConstruccion
+      estadoEntrega
+      estadoUso
+      identificadores {
+        idInferior
+        idSuperior
+        inferior
+        superior
+      }
+      modoIncognito
+      montoAlicuotaOrdinaria
+      montoFondoInicial
+    }
+  }
+`;
+
+// Mutación para actualizar la propiedad
+const UPDATE_PROPIEDAD = gql`
+  mutation UpdatePropiedad($documentId: ID!, $data: PropiedadInput!) {
+    updatePropiedad(documentId: $documentId, data: $data) {
       documentId
       identificadores {
         idSuperior
@@ -174,16 +236,7 @@ const CREATE_PROPIEDAD = gql`
   }
 `;
 
-const GET_PROJECT_RATES = gql`
-  query GetProjectRates($projectId: ID!) {
-    proyecto(documentId: $projectId) {
-      tasaBaseFondoInicial
-      tasaBaseAlicuotaOrdinaria
-    }
-  }
-`;
-
-// Interfaces
+// Interfaces (mismas que en la página de creación con ligeras modificaciones)
 interface PropertyFormData {
   // Paso 1: Información básica
   identificadores: {
@@ -215,13 +268,13 @@ interface PropertyFormData {
   estadoDeConstruccion: typeof ESTADOS_CONSTRUCCION[number]["value"];
   modoIncognito: boolean;
   actividad: typeof ACTIVIDADES[number]["value"];
-  encargadoDePago: "Propietario" | "Arrendatario";
   actaEntregaPdf?: {
     documentId: string;
     nombre: string;
     url: string;
     fechaSubida: string;
   };
+  encargadoDePago: typeof ENCARGADOS_PAGO[number]["value"];
 
   // Paso 3: Imagen
   imagen?: {
@@ -231,6 +284,14 @@ interface PropertyFormData {
     fechaSubida: string;
   };
 }
+
+// Función de formateo de moneda
+const formatCurrency = (number: number) => {
+  return number.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
 
 // Componentes
 function AreasDesglosadas({ methods }: { methods: any }) {
@@ -469,27 +530,23 @@ function AreasDesglosadas({ methods }: { methods: any }) {
   );
 }
 
-// Añadir esta función de formateo después de las constantes
-const formatCurrency = (number: number) => {
-  return number.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
 // Página principal
-export default function NuevaPropiedadPage() {
+export default function EditarPropiedadPage() {
   const [paso, setPaso] = useState(1);
   const router = useRouter();
-  const { projectId } = useParams();
+  const { projectId, propertyId } = useParams();
   const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
   
-  // Obtener tasas del proyecto
-  const { data: projectData } = useQuery(GET_PROJECT_RATES, {
-    variables: { projectId },
-    skip: !projectId
-  });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   
+  // Consulta para obtener los detalles de la propiedad
+  const { data: propertyData, loading } = useQuery(GET_PROPERTY_DETAILS, {
+    variables: { documentId: propertyId },
+    skip: !propertyId
+  });
+
   const methods = useForm<PropertyFormData>({
     defaultValues: {
       identificadores: {
@@ -514,12 +571,68 @@ export default function NuevaPropiedadPage() {
   });
 
   const [crearArchivo] = useMutation(CREATE_ARCHIVO);
-  const [crearPropiedad] = useMutation(CREATE_PROPIEDAD);
+  const [actualizarPropiedad] = useMutation(UPDATE_PROPIEDAD);
+
+  // Efecto para cargar los datos de la propiedad cuando estén disponibles
+  useEffect(() => {
+    if (propertyData?.propiedad) {
+      const property = propertyData.propiedad;
+      
+      // Configurar identificadores
+      methods.setValue("identificadores", {
+        superior: property.identificadores.superior,
+        idSuperior: property.identificadores.idSuperior,
+        inferior: property.identificadores.inferior,
+        idInferior: property.identificadores.idInferior
+      });
+      
+      // Configurar datos básicos
+      methods.setValue("codigoCatastral", property.codigoCatastral || "");
+      methods.setValue("areaTotal", property.areaTotal || 0);
+      methods.setValue("modoIncognito", property.modoIncognito);
+      
+      // Configurar estados
+      methods.setValue("estadoUso", property.estadoUso);
+      methods.setValue("estadoEntrega", property.estadoEntrega);
+      methods.setValue("estadoDeConstruccion", property.estadoDeConstruccion);
+      methods.setValue("actividad", property.actividad || "No_definida");
+      
+      // Configurar encargado de pago
+      if (property.pagos && property.pagos.length > 0) {
+        methods.setValue("encargadoDePago", property.pagos[0].encargadoDePago || "Propietario");
+      }
+      
+      // Configurar áreas desglosadas
+      if (property.areasDesglosadas && property.areasDesglosadas.length > 0) {
+        methods.setValue("usarAreasDesglosadas", true);
+        methods.setValue("areasDesglosadas", property.areasDesglosadas.map((area: any) => ({
+          area: area.area,
+          tipoDeArea: area.tipoDeArea,
+          nombreAdicional: area.nombreAdicional,
+          tieneTasaAlicuotaOrdinariaEspecial: area.tieneTasaAlicuotaOrdinariaEspecial,
+          tasaAlicuotaOrdinariaEspecial: area.tasaAlicuotaOrdinariaEspecial
+        })));
+      }
+      
+      // Configurar documentos
+      if (property.escrituraPdf) {
+        methods.setValue("documentoEscritura", property.escrituraPdf);
+      }
+      
+      if (property.actaEntregaPdf) {
+        methods.setValue("actaEntregaPdf", property.actaEntregaPdf);
+      }
+      
+      if (property.imagen) {
+        methods.setValue("imagen", property.imagen);
+      }
+    }
+  }, [propertyData, methods]);
 
   // Calcular montos basados en áreas y tasas
   const calcularMontos = () => {
-    const tasaBaseFondoInicial = Number(projectData?.proyecto?.tasaBaseFondoInicial) || 0;
-    const tasaBaseAlicuotaOrdinaria = Number(projectData?.proyecto?.tasaBaseAlicuotaOrdinaria) || 0;
+    const tasaBaseFondoInicial = Number(propertyData?.propiedad?.proyecto?.tasaBaseFondoInicial) || 0;
+    const tasaBaseAlicuotaOrdinaria = Number(propertyData?.propiedad?.proyecto?.tasaBaseAlicuotaOrdinaria) || 0;
     const areaTotal = Number(methods.watch("areaTotal")) || 0;
     const usarDesglose = methods.watch("usarAreasDesglosadas");
 
@@ -564,7 +677,6 @@ export default function NuevaPropiedadPage() {
     try {
       const { fondoInicial, alicuotaOrdinaria } = calcularMontos();
       const dataToSubmit = {
-        proyecto: projectId,
         identificadores: {
           superior: data.identificadores.superior,
           idSuperior: data.identificadores.idSuperior,
@@ -591,35 +703,43 @@ export default function NuevaPropiedadPage() {
         montoFondoInicial: fondoInicial,
         montoAlicuotaOrdinaria: alicuotaOrdinaria,
         pagos: {
-          encargadoDePago: data.encargadoDePago
+          create: [{
+            encargadoDePago: data.encargadoDePago
+          }]
         }
       };
       
-      const response = await crearPropiedad({
+      const response = await actualizarPropiedad({
         variables: {
+          documentId: propertyId,
           data: dataToSubmit
         }
       });
 
-      console.log("Respuesta de creación:", response.data);
-      console.log("Datos enviados:", dataToSubmit);
-
-      if (response.data?.createPropiedad) {
-        const newPropertyId = response.data.createPropiedad.documentId;
-        setNewPropertyId(newPropertyId);
+      if (response.data?.updatePropiedad) {
         setShowSuccessModal(true);
+        // Actualizar el caché del proyecto
+        if (typeof projectId === 'string') {
+          mutate();
+        }
       }
-    } catch (error) {
-      console.error("Error al guardar:", error);
+    } catch (error: any) {
+      console.error("Error al actualizar:", error);
+      setErrorMessage(error.message || "Ha ocurrido un error al actualizar la propiedad");
+      setShowErrorModal(true);
     }
   };
 
   const { fondoInicial, alicuotaOrdinaria } = calcularMontos();
 
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [newPropertyId, setNewPropertyId] = useState<string>();
+  // Si está cargando, mostrar indicador de carga
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#008A4B]"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -636,7 +756,7 @@ export default function NuevaPropiedadPage() {
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-semibold">Nueva Propiedad</h1>
+          <h1 className="text-2xl font-semibold">Editar Propiedad</h1>
         </div>
         <div className="text-sm text-gray-500">
           Paso {paso} de 3
@@ -646,7 +766,7 @@ export default function NuevaPropiedadPage() {
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
           <div className="bg-white rounded-xl border p-6">
-            {paso === 1 ? (
+            {paso === 1 && (
               <div className="space-y-6">
                 {/* Identificadores */}
                 <div className="grid grid-cols-2 gap-4">
@@ -804,14 +924,26 @@ export default function NuevaPropiedadPage() {
                       }}
                     />
                     {methods.watch("documentoEscritura") && (
-                      <span className="text-sm text-green-600">
-                        ✓ Archivo subido correctamente
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-green-600">
+                          ✓ Archivo subido: {methods.watch("documentoEscritura.nombre")}
+                        </span>
+                        <a 
+                          href={methods.watch("documentoEscritura.url")} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-500 hover:underline"
+                        >
+                          Ver
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
-            ) : paso === 2 ? (
+            )}
+            
+            {paso === 2 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -912,9 +1044,19 @@ export default function NuevaPropiedadPage() {
                         }}
                       />
                       {methods.watch("actaEntregaPdf") && (
-                        <span className="text-sm text-green-600">
-                          ✓ Archivo subido correctamente
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-green-600">
+                            ✓ Archivo subido: {methods.watch("actaEntregaPdf.nombre")}
+                          </span>
+                          <a 
+                            href={methods.watch("actaEntregaPdf.url")} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-500 hover:underline"
+                          >
+                            Ver
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -951,7 +1093,9 @@ export default function NuevaPropiedadPage() {
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {paso === 3 && (
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1010,13 +1154,13 @@ export default function NuevaPropiedadPage() {
                     )}
                   </div>
                   
-                  {/* Vista previa de la imagen */}
+                  {/* Preview de la imagen */}
                   {methods.watch("imagen") && (
                     <div className="mt-4">
-                      <div className="relative w-full max-w-md h-48 overflow-hidden rounded-lg border border-gray-200 !min-h-[192px] flex items-center justify-center">
+                      <div className="relative w-full max-w-md h-48 overflow-hidden rounded-lg border border-gray-200">
                         <Image 
                           src={methods.watch("imagen.url")} 
-                          alt="Vista previa de la propiedad" 
+                          alt="Preview de la propiedad"
                           fill
                           style={{ objectFit: "cover" }}
                           className="transition-opacity hover:opacity-90"
@@ -1058,7 +1202,7 @@ export default function NuevaPropiedadPage() {
               type="submit"
               className="ml-auto"
             >
-              {paso < 3 ? "Siguiente" : "Crear Propiedad"}
+              {paso < 3 ? "Siguiente" : "Guardar Cambios"}
             </Button>
           </div>
         </form>
@@ -1067,14 +1211,15 @@ export default function NuevaPropiedadPage() {
       {showSuccessModal && (
         <StatusModal
           type="success"
-          title="¡Propiedad creada exitosamente!"
-          message="La propiedad ha sido creada correctamente."
-          onClose={() => setShowSuccessModal(false)}
+          title="¡Propiedad actualizada exitosamente!"
+          message="La propiedad ha sido actualizada correctamente."
+          onClose={() => {
+            setShowSuccessModal(false);
+            router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
+          }}
           actionLabel="Ver Propiedad"
           onAction={() => {
-            router.push(
-              `/dashboard/proyectos/${projectId}/propiedades/${newPropertyId}`
-            );
+            router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
           }}
         />
       )}
@@ -1082,7 +1227,7 @@ export default function NuevaPropiedadPage() {
       {showErrorModal && (
         <StatusModal
           type="error"
-          title="Error al crear la propiedad"
+          title="Error al actualizar la propiedad"
           message={errorMessage}
           onClose={() => setShowErrorModal(false)}
           actionLabel="Intentar nuevamente"
