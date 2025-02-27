@@ -611,7 +611,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                 key={property.documentId}
                 property={property}
                 projectId={projectId}
-                projectImage={project.fotoProyecto?.url}
+                projectImage={property.imagen?.url}
               />
             ))}
           </div>

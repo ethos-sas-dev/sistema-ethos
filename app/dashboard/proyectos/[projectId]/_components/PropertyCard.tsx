@@ -49,7 +49,7 @@ const PropertyCard = memo(function PropertyCard({ property, projectId, projectIm
         <div className="relative h-48 bg-gray-100 flex-shrink-0">
           {projectImage ? (
             <Image
-              src={property.imagen?.url || projectImage}
+              src={projectImage}
               alt={`${getIdentificador('superior')} ${getIdentificador('idSuperior')}`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
