@@ -13,6 +13,8 @@ import { gql, useMutation, useQuery } from "@apollo/client";
 import { StatusModal } from "@/_components/StatusModal";
 import { useProject } from "@/dashboard/_hooks/useProject";
 import Image from "next/image";
+import { SimpleDocumentUpload } from "@/_components/SimpleDocumentUpload";
+import { Select } from "@/_components/ui/select";
 
 // Constantes
 const IDENTIFICADORES_SUPERIOR = [
@@ -174,6 +176,45 @@ const CREATE_PROPIEDAD = gql`
   }
 `;
 
+const CREATE_COMPONENTES_ADICIONALES = gql`
+  mutation CreateComponenteAdicional($data: ComponenteAdicionalInput!) {
+    createComponenteAdicional(data: $data) {
+      documentId
+      tieneTrampasGrasa
+      trampasGrasa {
+        estado
+        descripcion
+        tipo
+        ubicacionInterna
+        fechaInstalacion
+        documentosRespaldos {
+          nombre
+          validoDesde
+          validoHasta
+          url
+        }
+      }
+      tieneAdecuaciones
+      adecuaciones {
+        costo
+        descripcion
+        documentosRespaldos {
+          nombre
+          validoDesde
+          validoHasta
+          url
+        }
+        estado
+        fechaRealizacion
+        responsable
+        tipoAdecuacion
+      }
+      ObligadoTrampaDeGrasa
+      CuantasTrampasEstaObligadoATener
+    }
+  }
+`;
+
 const GET_PROJECT_RATES = gql`
   query GetProjectRates($projectId: ID!) {
     proyecto(documentId: $projectId) {
@@ -182,6 +223,19 @@ const GET_PROJECT_RATES = gql`
     }
   }
 `;
+
+const ESTADOS_TRAMPA_GRASA = [
+  { value: "operativa", label: "Operativa" },
+  { value: "mantenimientoPendiente", label: "Mantenimiento Pendiente" },
+  { value: "requiereReparacion", label: "Requiere Reparación" },
+  { value: "fueraDeServicio", label: "Fuera de Servicio" }
+] as const;
+
+const TIPOS_TRAMPA_GRASA = [
+  { value: "frontal", label: "Frontal" },
+  { value: "aceroInoxidableInterna", label: "Acero Inoxidable Interna" },
+  { value: "trasera", label: "Trasera" }
+] as const;
 
 // Interfaces
 interface PropertyFormData {
@@ -230,6 +284,39 @@ interface PropertyFormData {
     url: string;
     fechaSubida: string;
   };
+
+  // Componentes Adicionales
+  tieneTrampasGrasa: boolean;
+  trampasGrasa: Array<{
+    estado: string;
+    descripcion: string;
+    tipo: string;
+    ubicacionInterna: string;
+    fechaInstalacion: string;
+    documentosRespaldos: Array<{
+      nombre: string;
+      validoDesde: string;
+      validoHasta: string;
+      url: string;
+    }>;
+  }>;
+  tieneAdecuaciones: boolean;
+  adecuaciones?: Array<{
+    costo: number;
+    descripcion: string;
+    documentosRespaldos: Array<{
+      nombre: string;
+      validoDesde: string;
+      validoHasta: string;
+      url: string;
+    }>;
+    estado: string;
+    fechaRealizacion: string;
+    responsable: string;
+    tipoAdecuacion: string;
+  }>;
+  ObligadoTrampaDeGrasa: boolean;
+  CuantasTrampasEstaObligadoATener: number;
 }
 
 // Componentes
@@ -483,6 +570,7 @@ export default function NuevaPropiedadPage() {
   const router = useRouter();
   const { projectId } = useParams();
   const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // Obtener tasas del proyecto
   const { data: projectData } = useQuery(GET_PROJECT_RATES, {
@@ -509,12 +597,19 @@ export default function NuevaPropiedadPage() {
       actividad: "No_definida",
       encargadoDePago: "Propietario",
       actaEntregaPdf: undefined,
-      imagen: undefined
+      imagen: undefined,
+      tieneTrampasGrasa: false,
+      trampasGrasa: [],
+      tieneAdecuaciones: false,
+      adecuaciones: [],
+      ObligadoTrampaDeGrasa: false,
+      CuantasTrampasEstaObligadoATener: 0
     }
   });
 
   const [crearArchivo] = useMutation(CREATE_ARCHIVO);
   const [crearPropiedad] = useMutation(CREATE_PROPIEDAD);
+  const [crearComponentesAdicionales] = useMutation(CREATE_COMPONENTES_ADICIONALES);
 
   // Calcular montos basados en áreas y tasas
   const calcularMontos = () => {
@@ -562,6 +657,22 @@ export default function NuevaPropiedadPage() {
     }
 
     try {
+      // Primero creamos los componentes adicionales
+      const componentesAdicionalesData = {
+        tieneTrampasGrasa: data.tieneTrampasGrasa,
+        trampasGrasa: data.trampasGrasa,
+        tieneAdecuaciones: data.tieneAdecuaciones,
+        adecuaciones: data.adecuaciones,
+        ObligadoTrampaDeGrasa: data.ObligadoTrampaDeGrasa,
+        CuantasTrampasEstaObligadoATener: data.CuantasTrampasEstaObligadoATener
+      };
+
+      const { data: componentesResponse } = await crearComponentesAdicionales({
+        variables: {
+          data: componentesAdicionalesData
+        }
+      });
+
       const { fondoInicial, alicuotaOrdinaria } = calcularMontos();
       const dataToSubmit = {
         proyecto: projectId,
@@ -592,7 +703,8 @@ export default function NuevaPropiedadPage() {
         montoAlicuotaOrdinaria: alicuotaOrdinaria,
         pagos: {
           encargadoDePago: data.encargadoDePago
-        }
+        },
+        componentesAdicionales: componentesResponse.createComponenteAdicional.documentId
       };
       
       const response = await crearPropiedad({
@@ -636,11 +748,21 @@ export default function NuevaPropiedadPage() {
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-semibold">Nueva Propiedad</h1>
+          <div>
+            <h1 className="text-2xl font-semibold">Nueva Propiedad</h1>
+            <p className="text-sm text-gray-500">Complete la información de la propiedad</p>
+          </div>
         </div>
         <div className="text-sm text-gray-500">
           Paso {paso} de 3
         </div>
+      </div>
+
+      {/* Barra de progreso */}
+      <div className="flex gap-2">
+        <div className={`flex-1 h-2 rounded-full ${paso >= 1 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+        <div className={`flex-1 h-2 rounded-full ${paso >= 2 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+        <div className={`flex-1 h-2 rounded-full ${paso >= 3 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
       </div>
 
       <FormProvider {...methods}>
@@ -757,58 +879,21 @@ export default function NuevaPropiedadPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Escritura
                   </label>
-                  <div className="flex items-center gap-2">
-                    <UploadButton
-                      endpoint="propertyDocument"
-                      onClientUploadComplete={async (res) => {
-                        if (res && res[0]) {
-                          try {
-                            const { data } = await crearArchivo({
-                              variables: {
-                                data: {
-                                  nombre: res[0].name,
-                                  url: res[0].ufsUrl,
-                                  tipoArchivo: "pdf",
-                                  fechaSubida: new Date().toISOString()
-                                }
-                              }
-                            });
-
-                            if (data?.createArchivo) {
-                              methods.setValue("documentoEscritura", data.createArchivo);
-                            }
-                          } catch (error) {
-                            console.error("Error al crear el archivo:", error);
-                          }
-                        }
-                      }}
-                      onUploadError={(error: Error) => {
-                        console.error("Error uploading:", error);
-                      }}
-                      appearance={{
-                        button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
-                        allowedContent: "hidden"
-                      }}
-                      content={{
-                        button({ ready }) {
-                          if (ready) {
-                            return (
-                              <>
-                                <DocumentArrowUpIcon className="w-4 h-4" />
-                                <span>Subir archivo</span>
-                              </>
-                            );
-                          }
-                          return "Cargando...";
-                        }
-                      }}
-                    />
-                    {methods.watch("documentoEscritura") && (
-                      <span className="text-sm text-green-600">
-                        ✓ Archivo subido correctamente
-                      </span>
-                    )}
-                  </div>
+                  <SimpleDocumentUpload
+                    onUploadComplete={(documentId, url, name) => {
+                      methods.setValue("documentoEscritura", {
+                        documentId,
+                        url,
+                        nombre: name,
+                        fechaSubida: new Date().toISOString()
+                      });
+                    }}
+                    currentDocument={methods.watch("documentoEscritura")}
+                    label="escritura"
+                    onDelete={() => {
+                      methods.setValue("documentoEscritura", undefined);
+                    }}
+                  />
                 </div>
               </div>
             ) : paso === 2 ? (
@@ -865,58 +950,21 @@ export default function NuevaPropiedadPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Acta de Entrega
                     </label>
-                    <div className="flex items-center gap-2">
-                      <UploadButton
-                        endpoint="propertyDocument"
-                        onClientUploadComplete={async (res) => {
-                          if (res && res[0]) {
-                            try {
-                              const { data } = await crearArchivo({
-                                variables: {
-                                  data: {
-                                    nombre: res[0].name,
-                                    url: res[0].ufsUrl,
-                                    tipoArchivo: "pdf",
-                                    fechaSubida: new Date().toISOString()
-                                  }
-                                }
-                              });
-
-                              if (data?.createArchivo) {
-                                methods.setValue("actaEntregaPdf", data.createArchivo);
-                              }
-                            } catch (error) {
-                              console.error("Error al crear el archivo:", error);
-                            }
-                          }
-                        }}
-                        onUploadError={(error: Error) => {
-                          console.error("Error uploading:", error);
-                        }}
-                        appearance={{
-                          button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
-                          allowedContent: "hidden"
-                        }}
-                        content={{
-                          button({ ready }) {
-                            if (ready) {
-                              return (
-                                <>
-                                  <DocumentArrowUpIcon className="w-4 h-4" />
-                                  <span>Subir archivo</span>
-                                </>
-                              );
-                            }
-                            return "Cargando...";
-                          }
-                        }}
-                      />
-                      {methods.watch("actaEntregaPdf") && (
-                        <span className="text-sm text-green-600">
-                          ✓ Archivo subido correctamente
-                        </span>
-                      )}
-                    </div>
+                    <SimpleDocumentUpload
+                      onUploadComplete={(documentId, url, name) => {
+                        methods.setValue("actaEntregaPdf", {
+                          documentId,
+                          url,
+                          nombre: name,
+                          fechaSubida: new Date().toISOString()
+                        });
+                      }}
+                      currentDocument={methods.watch("actaEntregaPdf")}
+                      label="acta de entrega"
+                      onDelete={() => {
+                        methods.setValue("actaEntregaPdf", undefined);
+                      }}
+                    />
                   </div>
                 )}
 
@@ -950,6 +998,241 @@ export default function NuevaPropiedadPage() {
                     </div>
                   </div>
                 </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Componentes Adicionales</h3>
+                  
+                  {/* Trampas de Grasa */}
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="ObligadoTrampaDeGrasa"
+                          {...methods.register("ObligadoTrampaDeGrasa")}
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                        />
+                        <label htmlFor="ObligadoTrampaDeGrasa" className="ml-2 text-sm text-gray-700">
+                          ¿Está obligado a tener trampas de grasa?
+                        </label>
+                      </div>
+                    </div>
+
+                    {methods.watch("ObligadoTrampaDeGrasa") && (
+                      <div className="ml-6">
+                        <label htmlFor="CuantasTrampasEstaObligadoATener" className="block text-sm font-medium text-gray-700">
+                          ¿Cuántas trampas está obligado a tener?
+                        </label>
+                        <Input
+                          type="number"
+                          id="CuantasTrampasEstaObligadoATener"
+                          min="0"
+                          {...methods.register("CuantasTrampasEstaObligadoATener", { valueAsNumber: true })}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="tieneTrampasGrasa"
+                        {...methods.register("tieneTrampasGrasa")}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                      />
+                      <label htmlFor="tieneTrampasGrasa" className="ml-2 text-sm text-gray-700">
+                        ¿Tiene trampas de grasa instaladas?
+                      </label>
+                    </div>
+
+                    {methods.watch("tieneTrampasGrasa") && (
+                      <div className="ml-6 space-y-4">
+                        {methods.watch("trampasGrasa")?.map((_, index) => (
+                          <div key={index} className="p-4 border rounded-lg space-y-4">
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const trampas = methods.getValues("trampasGrasa") || [];
+                                  methods.setValue("trampasGrasa", trampas.filter((_, i) => i !== index));
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Estado</label>
+                                <Select
+                                  {...methods.register(`trampasGrasa.${index}.estado`)}
+                                >
+                                  {ESTADOS_TRAMPA_GRASA.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Tipo</label>
+                                <Select
+                                  {...methods.register(`trampasGrasa.${index}.tipo`)}
+                                >
+                                  {TIPOS_TRAMPA_GRASA.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Descripción</label>
+                              <textarea
+                                {...methods.register(`trampasGrasa.${index}.descripcion`)}
+                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                rows={3}
+                                placeholder="Ingrese una descripción detallada de la trampa de grasa..."
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Ubicación Interna</label>
+                                <Input
+                                  type="text"
+                                  {...methods.register(`trampasGrasa.${index}.ubicacionInterna`)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Fecha de Instalación</label>
+                              <Input
+                                type="date"
+                                {...methods.register(`trampasGrasa.${index}.fechaInstalacion`)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const trampas = methods.getValues("trampasGrasa") || [];
+                            methods.setValue("trampasGrasa", [
+                              ...trampas,
+                              {
+                                estado: "operativa",
+                                descripcion: "",
+                                tipo: "frontal",
+                                ubicacionInterna: "",
+                                fechaInstalacion: new Date().toISOString().split('T')[0],
+                                documentosRespaldos: []
+                              }
+                            ]);
+                          }}
+                        >
+                          Agregar Trampa de Grasa
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adecuaciones */}
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="tieneAdecuaciones"
+                        {...methods.register("tieneAdecuaciones")}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                      />
+                      <label htmlFor="tieneAdecuaciones" className="ml-2 text-sm text-gray-700">
+                        ¿Tiene adecuaciones realizadas?
+                      </label>
+                    </div>
+
+                    {methods.watch("tieneAdecuaciones") && (
+                      <div className="ml-6 space-y-4">
+                        {methods.watch("adecuaciones")?.map((_, index) => (
+                          <div key={index} className="p-4 border rounded-lg space-y-4">
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const adecuaciones = methods.getValues("adecuaciones") || [];
+                                  methods.setValue("adecuaciones", adecuaciones.filter((_, i) => i !== index));
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Estado</label>
+                                <Select
+                                  {...methods.register(`adecuaciones.${index}.estado`)}
+                                >
+                                  <option value="planificada">Planificada</option>
+                                  <option value="en_proceso">En Proceso</option>
+                                  <option value="completada">Completada</option>
+                                  <option value="cancelada">Cancelada</option>
+                                </Select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Tipo de Adecuación</label>
+                                <Select
+                                  {...methods.register(`adecuaciones.${index}.tipoAdecuacion`)}
+                                >
+                                  <option value="Estructural">Estructural</option>
+                                  <option value="Eléctrica">Eléctrica</option>
+                                  <option value="Plomería">Plomería</option>
+                                  <option value="Acabados">Acabados</option>
+                                  <option value="Seguridad">Seguridad</option>
+                                  <option value="Otra">Otra</option>
+                                </Select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Descripción</label>
+                              <textarea
+                                {...methods.register(`adecuaciones.${index}.descripcion`)}
+                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                rows={3}
+                                placeholder="Ingrese una descripción detallada de la adecuación..."
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const adecuaciones = methods.getValues("adecuaciones") || [];
+                            methods.setValue("adecuaciones", [
+                              ...adecuaciones,
+                              {
+                                costo: 0,
+                                descripcion: "",
+                                documentosRespaldos: [],
+                                estado: "Planificada",
+                                fechaRealizacion: new Date().toISOString().split('T')[0],
+                                responsable: "",
+                                tipoAdecuacion: "Otra"
+                              }
+                            ]);
+                          }}
+                        >
+                          Agregar Adecuación
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -961,8 +1244,9 @@ export default function NuevaPropiedadPage() {
                     <UploadButton
                       endpoint="propertyImage"
                       onClientUploadComplete={async (res) => {
-                        if (res && res[0]) {
-                          try {
+                        try {
+                          setUploadingImage(true);
+                          if (res && res[0]) {
                             const { data } = await crearArchivo({
                               variables: {
                                 data: {
@@ -977,13 +1261,19 @@ export default function NuevaPropiedadPage() {
                             if (data?.createArchivo) {
                               methods.setValue("imagen", data.createArchivo);
                             }
-                          } catch (error) {
-                            console.error("Error al crear el archivo:", error);
                           }
+                        } catch (error) {
+                          console.error("Error al crear el archivo:", error);
+                        } finally {
+                          setUploadingImage(false);
                         }
                       }}
                       onUploadError={(error: Error) => {
                         console.error("Error uploading:", error);
+                        setUploadingImage(false);
+                      }}
+                      onUploadBegin={() => {
+                        setUploadingImage(true);
                       }}
                       appearance={{
                         button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
@@ -995,7 +1285,7 @@ export default function NuevaPropiedadPage() {
                             return (
                               <>
                                 <DocumentArrowUpIcon className="w-4 h-4" />
-                                <span>Subir imagen</span>
+                                <span>{uploadingImage ? "Subiendo..." : "Subir imagen"}</span>
                               </>
                             );
                           }
@@ -1003,7 +1293,7 @@ export default function NuevaPropiedadPage() {
                         }
                       }}
                     />
-                    {methods.watch("imagen") && (
+                    {methods.watch("imagen") && !uploadingImage && (
                       <span className="text-sm text-green-600 flex items-center gap-2">
                         ✓ Imagen subida correctamente
                       </span>
@@ -1094,4 +1384,4 @@ export default function NuevaPropiedadPage() {
       )}
     </motion.div>
   );
-} 
+}

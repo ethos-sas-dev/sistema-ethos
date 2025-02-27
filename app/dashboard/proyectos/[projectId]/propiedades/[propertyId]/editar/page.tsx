@@ -7,20 +7,24 @@ import { Button } from "@/_components/ui/button";
 import { Input } from "@/_components/ui/input";
 import { Switch } from "@/_components/ui/switch";
 import { useForm, FormProvider, useFieldArray } from "react-hook-form";
-import { ArrowLeftIcon, DocumentArrowUpIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowLeftIcon,
+  DocumentArrowUpIcon,
+} from "@heroicons/react/24/outline";
 import { UploadButton } from "@/utils/uploadthing";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { StatusModal } from "@/_components/StatusModal";
 import { useProject } from "@/dashboard/_hooks/useProject";
 import Image from "next/image";
 import { SimpleDocumentUpload } from "@/_components/SimpleDocumentUpload";
+// import { useToast } from "@/_components/ui/use-toast";
 
 // Constantes (las mismas que en la página de creación)
 const IDENTIFICADORES_SUPERIOR = [
   { value: "Manzana", label: "Manzana" },
   { value: "Bloque", label: "Bloque" },
   { value: "Lote", label: "Lote" },
-  { value: "Edificio", label: "Edificio" }
+  { value: "Edificio", label: "Edificio" },
 ] as const;
 
 const IDENTIFICADORES_INFERIOR = [
@@ -30,7 +34,7 @@ const IDENTIFICADORES_INFERIOR = [
   { value: "Oficina", label: "Oficina" },
   { value: "Macrolote", label: "Macrolote" },
   { value: "Departamento", label: "Departamento" },
-  { value: "Solar", label: "Solar" }
+  { value: "Solar", label: "Solar" },
 ] as const;
 
 const ESTADOS_CONSTRUCCION = [
@@ -43,7 +47,7 @@ const ESTADOS_CONSTRUCCION = [
   { value: "remodelacion", label: "Remodelación" },
   { value: "demolicion", label: "Demolición" },
   { value: "abandonada", label: "Abandonada" },
-  { value: "paralizada", label: "Paralizada" }
+  { value: "paralizada", label: "Paralizada" },
 ] as const;
 
 const TIPOS_AREA = [
@@ -57,71 +61,197 @@ const TIPOS_AREA = [
   { value: "terreno", label: "Terreno" },
   { value: "mezzanine", label: "Mezzanine" },
   { value: "pasillo", label: "Pasillo" },
-  { value: "adicional", label: "Adicional" }
+  { value: "adicional", label: "Adicional" },
 ] as const;
 
 const ACTIVIDADES = [
   { value: "No_definida", label: "No definida" },
-  { value: "Comercio_y_distribucion_de_productos", label: "Comercio y distribución de productos" },
+  {
+    value: "Comercio_y_distribucion_de_productos",
+    label: "Comercio y distribución de productos",
+  },
   { value: "Venta_al_por_mayor_y_menor", label: "Venta al por mayor y menor" },
-  { value: "Distribucion_de_equipos_electronicos", label: "Distribución de equipos electrónicos" },
-  { value: "Almacenaje_y_distribucion_de_productos_alimenticios", label: "Almacenaje y distribución de productos alimenticios" },
-  { value: "Distribucion_de_ropa_o_textiles", label: "Distribución de ropa o textiles" },
+  {
+    value: "Distribucion_de_equipos_electronicos",
+    label: "Distribución de equipos electrónicos",
+  },
+  {
+    value: "Almacenaje_y_distribucion_de_productos_alimenticios",
+    label: "Almacenaje y distribución de productos alimenticios",
+  },
+  {
+    value: "Distribucion_de_ropa_o_textiles",
+    label: "Distribución de ropa o textiles",
+  },
   { value: "Servicios_de_logistica", label: "Servicios de logística" },
-  { value: "Almacenaje_y_gestion_de_inventarios", label: "Almacenaje y gestión de inventarios" },
-  { value: "Servicios_de_transporte_y_distribucion", label: "Servicios de transporte y distribución" },
-  { value: "Operaciones_de_comercio_electronico", label: "Operaciones de comercio electrónico (E-commerce) y envío de productos" },
+  {
+    value: "Almacenaje_y_gestion_de_inventarios",
+    label: "Almacenaje y gestión de inventarios",
+  },
+  {
+    value: "Servicios_de_transporte_y_distribucion",
+    label: "Servicios de transporte y distribución",
+  },
+  {
+    value: "Operaciones_de_comercio_electronico",
+    label:
+      "Operaciones de comercio electrónico (E-commerce) y envío de productos",
+  },
   { value: "Manufactura_y_ensamblaje", label: "Manufactura y ensamblaje" },
-  { value: "Ensamblaje_de_productos_electronicos", label: "Ensamblaje de productos electrónicos" },
-  { value: "Fabricacion_de_productos_pequenos", label: "Fabricación de productos pequeños (como accesorios de moda o artículos de oficina)" },
+  {
+    value: "Ensamblaje_de_productos_electronicos",
+    label: "Ensamblaje de productos electrónicos",
+  },
+  {
+    value: "Fabricacion_de_productos_pequenos",
+    label:
+      "Fabricación de productos pequeños (como accesorios de moda o artículos de oficina)",
+  },
   { value: "Imprentas_y_serigrafia", label: "Imprentas y serigrafía" },
-  { value: "Carpinteria_o_fabricacion_de_muebles", label: "Carpintería o fabricación de muebles" },
+  {
+    value: "Carpinteria_o_fabricacion_de_muebles",
+    label: "Carpintería o fabricación de muebles",
+  },
   { value: "Servicios_de_tecnologia", label: "Servicios de tecnología" },
-  { value: "Reparacion_y_mantenimiento_de_equipos_electronicos", label: "Reparación y mantenimiento de equipos electrónicos" },
-  { value: "Desarrollo_de_software_o_aplicaciones", label: "Desarrollo de software o aplicaciones" },
-  { value: "Soporte_tecnico_y_consultoria_informatica", label: "Soporte técnico y consultoría informática" },
-  { value: "Diseno_grafico_y_multimedia", label: "Diseño gráfico y multimedia" },
+  {
+    value: "Reparacion_y_mantenimiento_de_equipos_electronicos",
+    label: "Reparación y mantenimiento de equipos electrónicos",
+  },
+  {
+    value: "Desarrollo_de_software_o_aplicaciones",
+    label: "Desarrollo de software o aplicaciones",
+  },
+  {
+    value: "Soporte_tecnico_y_consultoria_informatica",
+    label: "Soporte técnico y consultoría informática",
+  },
+  {
+    value: "Diseno_grafico_y_multimedia",
+    label: "Diseño gráfico y multimedia",
+  },
   { value: "Oficina_administrativa", label: "Oficina administrativa" },
-  { value: "Consultoria_en_diversas_areas", label: "Consultoría en diversas áreas (financiera, jurídica, recursos humanos, etc.)" },
-  { value: "Agencias_de_marketing_digital", label: "Agencias de marketing digital" },
-  { value: "Gestion_de_proyectos_o_eventos", label: "Gestión de proyectos o eventos" },
-  { value: "Servicios_contables_y_auditoria", label: "Servicios contables y auditoría" },
+  {
+    value: "Consultoria_en_diversas_areas",
+    label:
+      "Consultoría en diversas áreas (financiera, jurídica, recursos humanos, etc.)",
+  },
+  {
+    value: "Agencias_de_marketing_digital",
+    label: "Agencias de marketing digital",
+  },
+  {
+    value: "Gestion_de_proyectos_o_eventos",
+    label: "Gestión de proyectos o eventos",
+  },
+  {
+    value: "Servicios_contables_y_auditoria",
+    label: "Servicios contables y auditoría",
+  },
   { value: "Alquiler_de_espacios", label: "Alquiler de espacios" },
-  { value: "Alquiler_de_bodegas_para_almacenamiento", label: "Alquiler de bodegas para almacenamiento" },
-  { value: "Alquiler_de_oficinas_compartidas_o_coworking", label: "Alquiler de oficinas compartidas o coworking" },
+  {
+    value: "Alquiler_de_bodegas_para_almacenamiento",
+    label: "Alquiler de bodegas para almacenamiento",
+  },
+  {
+    value: "Alquiler_de_oficinas_compartidas_o_coworking",
+    label: "Alquiler de oficinas compartidas o coworking",
+  },
   { value: "Servicios_de_impresion", label: "Servicios de impresión" },
   { value: "Impresion_de_gran_formato", label: "Impresión de gran formato" },
-  { value: "Servicios_de_fotocopiado_y_escaneo", label: "Servicios de fotocopiado y escaneo" },
-  { value: "Impresion_y_produccion_de_material_publicitario", label: "Impresión y producción de material publicitario" },
-  { value: "Comercio_de_repuestos_o_autopartes", label: "Comercio de repuestos o autopartes" },
-  { value: "Venta_de_piezas_y_repuestos_de_vehiculos", label: "Venta de piezas y repuestos de vehículos" },
-  { value: "Venta_de_equipos_y_herramientas_especializadas", label: "Venta de equipos y herramientas especializadas" },
+  {
+    value: "Servicios_de_fotocopiado_y_escaneo",
+    label: "Servicios de fotocopiado y escaneo",
+  },
+  {
+    value: "Impresion_y_produccion_de_material_publicitario",
+    label: "Impresión y producción de material publicitario",
+  },
+  {
+    value: "Comercio_de_repuestos_o_autopartes",
+    label: "Comercio de repuestos o autopartes",
+  },
+  {
+    value: "Venta_de_piezas_y_repuestos_de_vehiculos",
+    label: "Venta de piezas y repuestos de vehículos",
+  },
+  {
+    value: "Venta_de_equipos_y_herramientas_especializadas",
+    label: "Venta de equipos y herramientas especializadas",
+  },
   { value: "Agencias_de_seguridad", label: "Agencias de seguridad" },
-  { value: "Venta_y_distribucion_de_sistemas_de_seguridad", label: "Venta y distribución de sistemas de seguridad (alarmas, cámaras)" },
-  { value: "Instalacion_de_equipos_de_seguridad", label: "Instalación de equipos de seguridad" },
+  {
+    value: "Venta_y_distribucion_de_sistemas_de_seguridad",
+    label: "Venta y distribución de sistemas de seguridad (alarmas, cámaras)",
+  },
+  {
+    value: "Instalacion_de_equipos_de_seguridad",
+    label: "Instalación de equipos de seguridad",
+  },
   { value: "Artes_y_entretenimiento", label: "Artes y entretenimiento" },
-  { value: "Estudio_de_fotografia_o_grabacion_de_videos", label: "Estudio de fotografía o grabación de videos" },
-  { value: "Taller_de_pintura_o_escultura", label: "Taller de pintura o escultura" },
-  { value: "Produccion_de_eventos_o_espectaculos", label: "Producción de eventos o espectáculos" },
-  { value: "Servicios_de_reparacion_y_mantenimiento", label: "Servicios de reparación y mantenimiento" },
-  { value: "Reparacion_de_electrodomesticos", label: "Reparación de electrodomésticos" },
-  { value: "Reparacion_de_computadoras_o_equipos_electronicos", label: "Reparación de computadoras o equipos electrónicos" },
-  { value: "Mantenimiento_de_maquinaria_o_vehiculos", label: "Mantenimiento de maquinaria o vehículos" },
+  {
+    value: "Estudio_de_fotografia_o_grabacion_de_videos",
+    label: "Estudio de fotografía o grabación de videos",
+  },
+  {
+    value: "Taller_de_pintura_o_escultura",
+    label: "Taller de pintura o escultura",
+  },
+  {
+    value: "Produccion_de_eventos_o_espectaculos",
+    label: "Producción de eventos o espectáculos",
+  },
+  {
+    value: "Servicios_de_reparacion_y_mantenimiento",
+    label: "Servicios de reparación y mantenimiento",
+  },
+  {
+    value: "Reparacion_de_electrodomesticos",
+    label: "Reparación de electrodomésticos",
+  },
+  {
+    value: "Reparacion_de_computadoras_o_equipos_electronicos",
+    label: "Reparación de computadoras o equipos electrónicos",
+  },
+  {
+    value: "Mantenimiento_de_maquinaria_o_vehiculos",
+    label: "Mantenimiento de maquinaria o vehículos",
+  },
   { value: "Servicios_educativos", label: "Servicios educativos" },
-  { value: "Centro_de_formacion_o_capacitacion", label: "Centro de formación o capacitación (presencial o en línea)" },
-  { value: "Clases_de_computacion_o_diseno_grafico", label: "Clases de computación o diseño gráfico" },
-  { value: "Talleres_y_cursos_especializados", label: "Talleres y cursos especializados" },
+  {
+    value: "Centro_de_formacion_o_capacitacion",
+    label: "Centro de formación o capacitación (presencial o en línea)",
+  },
+  {
+    value: "Clases_de_computacion_o_diseno_grafico",
+    label: "Clases de computación o diseño gráfico",
+  },
+  {
+    value: "Talleres_y_cursos_especializados",
+    label: "Talleres y cursos especializados",
+  },
   { value: "Cuidado_personal", label: "Cuidado personal" },
-  { value: "Centro_de_estetica_o_peluqueria", label: "Centro de estética o peluquería" },
-  { value: "Gimnasio_o_centro_de_entrenamiento_fisico", label: "Gimnasio o centro de entrenamiento físico" },
+  {
+    value: "Centro_de_estetica_o_peluqueria",
+    label: "Centro de estética o peluquería",
+  },
+  {
+    value: "Gimnasio_o_centro_de_entrenamiento_fisico",
+    label: "Gimnasio o centro de entrenamiento físico",
+  },
   { value: "Restauracion_y_alimentos", label: "Restauración y alimentos" },
-  { value: "Produccion_de_alimentos_empaquetados", label: "Producción de alimentos empaquetados" },
-  { value: "Fabricacion_de_productos_de_panaderia_o_reposteria", label: "Fabricación de productos de panadería o repostería" }
+  {
+    value: "Produccion_de_alimentos_empaquetados",
+    label: "Producción de alimentos empaquetados",
+  },
+  {
+    value: "Fabricacion_de_productos_de_panaderia_o_reposteria",
+    label: "Fabricación de productos de panadería o repostería",
+  },
 ] as const;
 
 const ENCARGADOS_PAGO = [
   { value: "Propietario", label: "Propietario" },
-  { value: "Arrendatario", label: "Arrendatario" }
+  { value: "Arrendatario", label: "Arrendatario" },
 ] as const;
 
 // Queries y mutaciones GraphQL
@@ -193,6 +323,40 @@ const GET_PROPERTY_DETAILS = gql`
       modoIncognito
       montoAlicuotaOrdinaria
       montoFondoInicial
+      componentesAdicionales {
+        documentId
+        tieneTrampasGrasa
+        trampasGrasa {
+          estado
+          descripcion
+          tipo
+          ubicacionInterna
+          fechaInstalacion
+          documentosRespaldos {
+            nombre
+            validoDesde
+            validoHasta
+            url
+          }
+        }
+        tieneAdecuaciones
+        adecuaciones {
+          costo
+          descripcion
+          documentosRespaldos {
+            nombre
+            validoDesde
+            validoHasta
+            url
+          }
+          estado
+          fechaRealizacion
+          responsable
+          tipoAdecuacion
+        }
+        ObligadoTrampaDeGrasa
+        CuantasTrampasEstaObligadoATener
+      }
     }
   }
 `;
@@ -233,6 +397,110 @@ const UPDATE_PROPIEDAD = gql`
         encargadoDePago
         fechaExpiracionEncargadoDePago
       }
+      componentesAdicionales {
+        documentId
+        tieneTrampasGrasa
+        trampasGrasa {
+          estado
+          descripcion
+          tipo
+          ubicacionInterna
+          fechaInstalacion
+        }
+        tieneAdecuaciones
+        adecuaciones {
+          costo
+          descripcion
+          estado
+          fechaRealizacion
+          responsable
+          tipoAdecuacion
+        }
+        ObligadoTrampaDeGrasa
+        CuantasTrampasEstaObligadoATener
+      }
+    }
+  }
+`;
+
+// Mutación para crear/actualizar componentes adicionales
+const UPSERT_COMPONENTES_ADICIONALES = gql`
+  mutation UpsertComponentesAdicionales($data: ComponentesAdicionalesInput!, $documentId: ID) {
+    upsertComponenteAdicional(data: $data, documentId: $documentId) {
+      documentId
+      tieneTrampasGrasa
+      trampasGrasa {
+        estado
+        descripcion
+        tipo
+        ubicacionInterna
+        fechaInstalacion
+      }
+      tieneAdecuaciones
+      adecuaciones {
+        costo
+        descripcion
+        estado
+        fechaRealizacion
+        responsable
+        tipoAdecuacion
+      }
+      ObligadoTrampaDeGrasa
+      CuantasTrampasEstaObligadoATener
+    }
+  }
+`;
+
+const UPDATE_COMPONENTE_ADICIONAL = gql`
+  mutation UpdateComponenteAdicional($documentId: ID!, $data: ComponenteAdicionalInput!) {
+    updateComponenteAdicional(documentId: $documentId, data: $data) {
+      documentId
+      tieneTrampasGrasa
+      trampasGrasa {
+        estado
+        descripcion
+        tipo
+        ubicacionInterna
+        fechaInstalacion
+      }
+      tieneAdecuaciones
+      adecuaciones {
+        costo
+        descripcion
+        estado
+        fechaRealizacion
+        responsable
+        tipoAdecuacion
+      }
+      ObligadoTrampaDeGrasa
+      CuantasTrampasEstaObligadoATener
+    }
+  }
+`;
+
+const CREATE_COMPONENTE_ADICIONAL = gql`
+  mutation CreateComponenteAdicional($data: ComponenteAdicionalInput!) {
+    createComponenteAdicional(data: $data) {
+      documentId
+      tieneTrampasGrasa
+      trampasGrasa {
+        estado
+        descripcion
+        tipo
+        ubicacionInterna
+        fechaInstalacion
+      }
+      tieneAdecuaciones
+      adecuaciones {
+        costo
+        descripcion
+        estado
+        fechaRealizacion
+        responsable
+        tipoAdecuacion
+      }
+      ObligadoTrampaDeGrasa
+      CuantasTrampasEstaObligadoATener
     }
   }
 `;
@@ -241,9 +509,9 @@ const UPDATE_PROPIEDAD = gql`
 interface PropertyFormData {
   // Paso 1: Información básica
   identificadores: {
-    superior: typeof IDENTIFICADORES_SUPERIOR[number]["value"];
+    superior: (typeof IDENTIFICADORES_SUPERIOR)[number]["value"];
     idSuperior: string;
-    inferior: typeof IDENTIFICADORES_INFERIOR[number]["value"];
+    inferior: (typeof IDENTIFICADORES_INFERIOR)[number]["value"];
     idInferior: string;
   };
   codigoCatastral: string;
@@ -251,7 +519,7 @@ interface PropertyFormData {
   areaTotal: number;
   areasDesglosadas?: Array<{
     area: number;
-    tipoDeArea: typeof TIPOS_AREA[number]["value"];
+    tipoDeArea: (typeof TIPOS_AREA)[number]["value"];
     nombreAdicional?: string;
     tieneTasaAlicuotaOrdinariaEspecial: boolean;
     tasaAlicuotaOrdinariaEspecial?: number;
@@ -266,16 +534,16 @@ interface PropertyFormData {
   // Paso 2: Estados
   estadoUso: "enUso" | "disponible";
   estadoEntrega: "entregado" | "noEntregado";
-  estadoDeConstruccion: typeof ESTADOS_CONSTRUCCION[number]["value"];
+  estadoDeConstruccion: (typeof ESTADOS_CONSTRUCCION)[number]["value"];
   modoIncognito: boolean;
-  actividad: typeof ACTIVIDADES[number]["value"];
+  actividad: (typeof ACTIVIDADES)[number]["value"];
+  encargadoDePago: (typeof ENCARGADOS_PAGO)[number]["value"];
   actaEntregaPdf?: {
     documentId: string;
     nombre: string;
     url: string;
     fechaSubida: string;
   };
-  encargadoDePago: typeof ENCARGADOS_PAGO[number]["value"];
 
   // Paso 3: Imagen
   imagen?: {
@@ -284,13 +552,46 @@ interface PropertyFormData {
     url: string;
     fechaSubida: string;
   };
+
+  // Componentes Adicionales
+  tieneTrampasGrasa: boolean;
+  trampasGrasa: Array<{
+    estado: string;
+    descripcion: string;
+    tipo: string;
+    ubicacionInterna: string;
+    fechaInstalacion: string;
+    documentosRespaldos: Array<{
+      nombre: string;
+      validoDesde: string;
+      validoHasta: string;
+      url: string;
+    }>;
+  }>;
+  tieneAdecuaciones: boolean;
+  adecuaciones?: Array<{
+    costo: number;
+    descripcion: string;
+    documentosRespaldos: Array<{
+      nombre: string;
+      validoDesde: string;
+      validoHasta: string;
+      url: string;
+    }>;
+    estado: string;
+    fechaRealizacion: string;
+    responsable: string;
+    tipoAdecuacion: string;
+  }>;
+  ObligadoTrampaDeGrasa: boolean;
+  CuantasTrampasEstaObligadoATener: number;
 }
 
 // Función de formateo de moneda
 const formatCurrency = (number: number) => {
-  return number.toLocaleString('en-US', {
+  return number.toLocaleString("en-US", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 };
 
@@ -298,24 +599,27 @@ const formatCurrency = (number: number) => {
 function AreasDesglosadas({ methods }: { methods: any }) {
   const { fields, append, remove } = useFieldArray({
     control: methods.control,
-    name: "areasDesglosadas"
+    name: "areasDesglosadas",
   });
 
   const calcularAreaTotal = () => {
     const areas = methods.getValues("areasDesglosadas") || [];
-    const total = areas.reduce((sum: number, area: { area: number }) => sum + (Number(area.area) || 0), 0);
+    const total = areas.reduce(
+      (sum: number, area: { area: number }) => sum + (Number(area.area) || 0),
+      0
+    );
     methods.setValue("areaTotal", total);
   };
 
   const handleSwitchChange = (checked: boolean) => {
     methods.setValue("usarAreasDesglosadas", checked);
-    
+
     if (checked && (!fields.length || fields.length === 0)) {
       const areaTotal = methods.getValues("areaTotal") || 0;
       append({
         area: areaTotal,
         tipoDeArea: "adicional",
-        tieneTasaAlicuotaOrdinariaEspecial: false
+        tieneTasaAlicuotaOrdinariaEspecial: false,
       });
     }
   };
@@ -345,13 +649,15 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                   if (!v) return 0;
                   const parsed = parseFloat(v.toString());
                   return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
-                }
+                },
               })}
               onBlur={(e) => {
                 const value = e.target.value;
                 if (value) {
                   const rounded = Math.round(parseFloat(value) * 100) / 100;
-                  methods.setValue("areaTotal", rounded, { shouldValidate: true });
+                  methods.setValue("areaTotal", rounded, {
+                    shouldValidate: true,
+                  });
                 }
               }}
             />
@@ -360,11 +666,18 @@ function AreasDesglosadas({ methods }: { methods: any }) {
       ) : (
         <div className="space-y-4">
           {fields.map((field, index) => {
-            const tipoDeArea = methods.watch(`areasDesglosadas.${index}.tipoDeArea`);
-            const tieneTasaEspecial = methods.watch(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`);
+            const tipoDeArea = methods.watch(
+              `areasDesglosadas.${index}.tipoDeArea`
+            );
+            const tieneTasaEspecial = methods.watch(
+              `areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`
+            );
 
             return (
-              <div key={field.id} className="space-y-4 p-4 border rounded-lg relative">
+              <div
+                key={field.id}
+                className="space-y-4 p-4 border rounded-lg relative"
+              >
                 <button
                   type="button"
                   className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
@@ -376,8 +689,17 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                     }
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </button>
                 <div className="grid grid-cols-2 gap-4">
@@ -387,22 +709,29 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                     </label>
                     <select
                       className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      {...methods.register(`areasDesglosadas.${index}.tipoDeArea`)}
+                      {...methods.register(
+                        `areasDesglosadas.${index}.tipoDeArea`
+                      )}
                     >
                       <option value="adicional">Adicional</option>
-                      {TIPOS_AREA.filter(option => {
+                      {TIPOS_AREA.filter((option) => {
                         if (option.value === "adicional") {
                           return false;
                         }
-                        if (option.value === methods.watch(`areasDesglosadas.${index}.tipoDeArea`)) {
+                        if (
+                          option.value ===
+                          methods.watch(`areasDesglosadas.${index}.tipoDeArea`)
+                        ) {
                           return true;
                         }
-                        const tiposSeleccionados = methods.getValues("areasDesglosadas")
-                          ?.filter((_: any, i: number) => i !== index)
-                          .map((area: any) => area.tipoDeArea)
-                          .filter(Boolean) || [];
+                        const tiposSeleccionados =
+                          methods
+                            .getValues("areasDesglosadas")
+                            ?.filter((_: any, i: number) => i !== index)
+                            .map((area: any) => area.tipoDeArea)
+                            .filter(Boolean) || [];
                         return !tiposSeleccionados.includes(option.value);
-                      }).map(option => (
+                      }).map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -422,17 +751,22 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                         setValueAs: (v: string | number | undefined) => {
                           if (!v) return 0;
                           const parsed = parseFloat(v.toString());
-                          return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
-                        }
+                          return isNaN(parsed)
+                            ? 0
+                            : Math.round(parsed * 100) / 100;
+                        },
                       })}
                       onChange={(e) => {
-                        methods.register(`areasDesglosadas.${index}.area`).onChange(e);
+                        methods
+                          .register(`areasDesglosadas.${index}.area`)
+                          .onChange(e);
                         calcularAreaTotal();
                       }}
                       onBlur={(e) => {
                         const value = e.target.value;
                         if (value) {
-                          const rounded = Math.round(parseFloat(value) * 100) / 100;
+                          const rounded =
+                            Math.round(parseFloat(value) * 100) / 100;
                           methods.setValue(
                             `areasDesglosadas.${index}.area`,
                             rounded,
@@ -451,7 +785,9 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                       Nombre del área adicional
                     </label>
                     <Input
-                      {...methods.register(`areasDesglosadas.${index}.nombreAdicional`)}
+                      {...methods.register(
+                        `areasDesglosadas.${index}.nombreAdicional`
+                      )}
                       placeholder="Ej: Área de carga, Piso X, etc."
                     />
                   </div>
@@ -460,18 +796,28 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={methods.watch(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`)}
+                      checked={methods.watch(
+                        `areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`
+                      )}
                       onCheckedChange={(checked: boolean) => {
-                        methods.setValue(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`, checked);
+                        methods.setValue(
+                          `areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`,
+                          checked
+                        );
                         if (checked) {
-                          methods.setValue(`areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`, 0);
+                          methods.setValue(
+                            `areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`,
+                            0
+                          );
                         }
                       }}
                     />
                     <label className="text-sm">Tasa alícuota especial</label>
                   </div>
 
-                  {methods.watch(`areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`) && (
+                  {methods.watch(
+                    `areasDesglosadas.${index}.tieneTasaAlicuotaOrdinariaEspecial`
+                  ) && (
                     <div className="flex-1">
                       <div className="relative">
                         <Input
@@ -480,17 +826,24 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                           min="0"
                           className="pr-8"
                           placeholder="0.00"
-                          {...methods.register(`areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`, {
-                            setValueAs: (v: string | number | undefined) => {
-                              if (!v) return 0;
-                              const parsed = parseFloat(v.toString());
-                              return isNaN(parsed) ? 0 : parseFloat(parsed.toFixed(2));
+                          {...methods.register(
+                            `areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`,
+                            {
+                              setValueAs: (v: string | number | undefined) => {
+                                if (!v) return 0;
+                                const parsed = parseFloat(v.toString());
+                                return isNaN(parsed)
+                                  ? 0
+                                  : parseFloat(parsed.toFixed(2));
+                              },
                             }
-                          })}
+                          )}
                           onBlur={(e) => {
                             const value = e.target.value;
                             if (value) {
-                              const rounded = parseFloat(parseFloat(value).toFixed(2));
+                              const rounded = parseFloat(
+                                parseFloat(value).toFixed(2)
+                              );
                               methods.setValue(
                                 `areasDesglosadas.${index}.tasaAlicuotaOrdinariaEspecial`,
                                 rounded,
@@ -499,7 +852,9 @@ function AreasDesglosadas({ methods }: { methods: any }) {
                             }
                           }}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
                       </div>
                     </div>
                   )}
@@ -507,15 +862,17 @@ function AreasDesglosadas({ methods }: { methods: any }) {
               </div>
             );
           })}
-          
+
           <Button
             type="button"
             variant="outline"
-            onClick={() => append({
-              area: 0,
-              tipoDeArea: "adicional",
-              tieneTasaAlicuotaOrdinariaEspecial: false
-            })}
+            onClick={() =>
+              append({
+                area: 0,
+                tipoDeArea: "adicional",
+                tieneTasaAlicuotaOrdinariaEspecial: false,
+              })
+            }
           >
             Añadir Área
           </Button>
@@ -541,12 +898,15 @@ export default function EditarPropiedadPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { projectId, propertyId } = params;
-  const { mutate } = useProject(typeof projectId === 'string' ? projectId : null);
-  
+  const { mutate } = useProject(
+    typeof projectId === "string" ? projectId : null
+  );
+  // const { toast } = useToast();
+
   // Consulta para obtener los detalles de la propiedad
   const { data: propertyData, loading } = useQuery(GET_PROPERTY_DETAILS, {
     variables: { documentId: propertyId },
-    skip: !propertyId
+    skip: !propertyId,
   });
 
   const methods = useForm<PropertyFormData>({
@@ -555,7 +915,7 @@ export default function EditarPropiedadPage() {
         superior: "Manzana",
         idSuperior: "",
         inferior: "Local",
-        idInferior: ""
+        idInferior: "",
       },
       codigoCatastral: "",
       modoIncognito: true,
@@ -568,97 +928,178 @@ export default function EditarPropiedadPage() {
       actividad: "No_definida",
       encargadoDePago: "Propietario",
       actaEntregaPdf: undefined,
-      imagen: undefined
-    }
+      imagen: undefined,
+      tieneTrampasGrasa: false,
+      trampasGrasa: [],
+      tieneAdecuaciones: false,
+      adecuaciones: [],
+      ObligadoTrampaDeGrasa: false,
+      CuantasTrampasEstaObligadoATener: 0,
+    },
   });
 
   const [crearArchivo] = useMutation(CREATE_ARCHIVO);
   const [actualizarPropiedad] = useMutation(UPDATE_PROPIEDAD);
+  const [updateComponenteAdicional] = useMutation(UPDATE_COMPONENTE_ADICIONAL);
+  const [createComponenteAdicional] = useMutation(CREATE_COMPONENTE_ADICIONAL);
 
   // Efecto para cargar los datos de la propiedad cuando estén disponibles
   useEffect(() => {
     if (propertyData?.propiedad) {
       const property = propertyData.propiedad;
-      
+
       // Configurar identificadores
       methods.setValue("identificadores", {
         superior: property.identificadores.superior,
         idSuperior: property.identificadores.idSuperior,
         inferior: property.identificadores.inferior,
-        idInferior: property.identificadores.idInferior
+        idInferior: property.identificadores.idInferior,
       });
-      
+
       // Configurar datos básicos
       methods.setValue("codigoCatastral", property.codigoCatastral || "");
       methods.setValue("areaTotal", property.areaTotal || 0);
       methods.setValue("modoIncognito", property.modoIncognito);
-      
+
       // Configurar estados
       methods.setValue("estadoUso", property.estadoUso);
       methods.setValue("estadoEntrega", property.estadoEntrega);
       methods.setValue("estadoDeConstruccion", property.estadoDeConstruccion);
       methods.setValue("actividad", property.actividad || "No_definida");
-      
+
       // Configurar encargado de pago
       if (property.pagos && property.pagos.length > 0) {
-        methods.setValue("encargadoDePago", property.pagos[0].encargadoDePago || "Propietario");
+        methods.setValue(
+          "encargadoDePago",
+          property.pagos[0].encargadoDePago || "Propietario"
+        );
       }
-      
+
       // Configurar áreas desglosadas
       if (property.areasDesglosadas && property.areasDesglosadas.length > 0) {
         methods.setValue("usarAreasDesglosadas", true);
-        methods.setValue("areasDesglosadas", property.areasDesglosadas.map((area: any) => ({
-          area: area.area,
-          tipoDeArea: area.tipoDeArea,
-          nombreAdicional: area.nombreAdicional,
-          tieneTasaAlicuotaOrdinariaEspecial: area.tieneTasaAlicuotaOrdinariaEspecial,
-          tasaAlicuotaOrdinariaEspecial: area.tasaAlicuotaOrdinariaEspecial
-        })));
+        methods.setValue(
+          "areasDesglosadas",
+          property.areasDesglosadas.map((area: any) => ({
+            area: area.area,
+            tipoDeArea: area.tipoDeArea,
+            nombreAdicional: area.nombreAdicional,
+            tieneTasaAlicuotaOrdinariaEspecial:
+              area.tieneTasaAlicuotaOrdinariaEspecial,
+            tasaAlicuotaOrdinariaEspecial: area.tasaAlicuotaOrdinariaEspecial,
+          }))
+        );
       }
-      
+
       // Configurar documentos
       if (property.escrituraPdf) {
         methods.setValue("documentoEscritura", property.escrituraPdf);
       }
-      
+
       if (property.actaEntregaPdf) {
         methods.setValue("actaEntregaPdf", property.actaEntregaPdf);
       }
-      
+
       if (property.imagen) {
         methods.setValue("imagen", property.imagen);
+      }
+
+      // Configurar componentes adicionales
+      if (property.componentesAdicionales) {
+        methods.setValue(
+          "tieneTrampasGrasa",
+          property.componentesAdicionales.tieneTrampasGrasa
+        );
+        methods.setValue(
+          "trampasGrasa",
+          property.componentesAdicionales.trampasGrasa.map((t: any) => ({
+            estado: t.estado,
+            descripcion: t.descripcion,
+            tipo: t.tipo,
+            ubicacionInterna: t.ubicacionInterna,
+            fechaInstalacion: t.fechaInstalacion,
+            documentosRespaldos: t.documentosRespaldos.map((d: any) => ({
+              nombre: d.nombre,
+              validoDesde: d.validoDesde,
+              validoHasta: d.validoHasta,
+              url: d.url,
+            })),
+          }))
+        );
+        methods.setValue(
+          "tieneAdecuaciones",
+          property.componentesAdicionales.tieneAdecuaciones
+        );
+        methods.setValue(
+          "adecuaciones",
+          property.componentesAdicionales.adecuaciones.map((a: any) => ({
+            costo: a.costo,
+            descripcion: a.descripcion,
+            documentosRespaldos: a.documentosRespaldos.map((d: any) => ({
+              nombre: d.nombre,
+              validoDesde: d.validoDesde,
+              validoHasta: d.validoHasta,
+              url: d.url,
+            })),
+            estado: a.estado,
+            fechaRealizacion: a.fechaRealizacion,
+            responsable: a.responsable,
+            tipoAdecuacion: a.tipoAdecuacion,
+          }))
+        );
+        methods.setValue(
+          "ObligadoTrampaDeGrasa",
+          property.componentesAdicionales.ObligadoTrampaDeGrasa
+        );
+        methods.setValue(
+          "CuantasTrampasEstaObligadoATener",
+          property.componentesAdicionales.CuantasTrampasEstaObligadoATener
+        );
       }
     }
   }, [propertyData, methods]);
 
   // Calcular montos basados en áreas y tasas
   const calcularMontos = () => {
-    const tasaBaseFondoInicial = Number(propertyData?.propiedad?.proyecto?.tasaBaseFondoInicial) || 0;
-    const tasaBaseAlicuotaOrdinaria = Number(propertyData?.propiedad?.proyecto?.tasaBaseAlicuotaOrdinaria) || 0;
+    const tasaBaseFondoInicial =
+      Number(propertyData?.propiedad?.proyecto?.tasaBaseFondoInicial) || 0;
+    const tasaBaseAlicuotaOrdinaria =
+      Number(propertyData?.propiedad?.proyecto?.tasaBaseAlicuotaOrdinaria) || 0;
     const areaTotal = Number(methods.watch("areaTotal")) || 0;
     const usarDesglose = methods.watch("usarAreasDesglosadas");
 
     // El fondo inicial siempre se calcula igual: área total × tasa base fondo inicial
-    const fondoInicial = parseFloat((areaTotal * tasaBaseFondoInicial).toFixed(2));
+    const fondoInicial = parseFloat(
+      (areaTotal * tasaBaseFondoInicial).toFixed(2)
+    );
 
     // Para la alícuota ordinaria, depende si hay desglose o no
     let alicuotaOrdinaria = 0;
 
     if (!usarDesglose) {
       // Si no hay desglose, es simplemente área total × tasa base alícuota ordinaria
-      alicuotaOrdinaria = parseFloat((areaTotal * tasaBaseAlicuotaOrdinaria).toFixed(2));
+      alicuotaOrdinaria = parseFloat(
+        (areaTotal * tasaBaseAlicuotaOrdinaria).toFixed(2)
+      );
     } else {
       // Si hay desglose, calculamos la alícuota para cada área
       const areas = methods.watch("areasDesglosadas") || [];
-      
-      areas.forEach(area => {
+
+      areas.forEach((area) => {
         const areaValue = Number(area.area) || 0;
-        
-        if (area.tieneTasaAlicuotaOrdinariaEspecial && area.tasaAlicuotaOrdinariaEspecial) {
+
+        if (
+          area.tieneTasaAlicuotaOrdinariaEspecial &&
+          area.tasaAlicuotaOrdinariaEspecial
+        ) {
           const tasaEspecial = Number(area.tasaAlicuotaOrdinariaEspecial);
-          alicuotaOrdinaria += parseFloat((areaValue * tasaEspecial).toFixed(2));
+          alicuotaOrdinaria += parseFloat(
+            (areaValue * tasaEspecial).toFixed(2)
+          );
         } else {
-          alicuotaOrdinaria += parseFloat((areaValue * tasaBaseAlicuotaOrdinaria).toFixed(2));
+          alicuotaOrdinaria += parseFloat(
+            (areaValue * tasaBaseAlicuotaOrdinaria).toFixed(2)
+          );
         }
       });
     }
@@ -673,23 +1114,59 @@ export default function EditarPropiedadPage() {
     }
 
     try {
+      setIsLoading(true);
+
+      // Primero, manejamos los componentes adicionales
+      const componentesAdicionalesData = {
+        tieneTrampasGrasa: data.tieneTrampasGrasa,
+        trampasGrasa: data.trampasGrasa,
+        tieneAdecuaciones: data.tieneAdecuaciones,
+        adecuaciones: data.adecuaciones,
+        ObligadoTrampaDeGrasa: data.ObligadoTrampaDeGrasa,
+        CuantasTrampasEstaObligadoATener: data.CuantasTrampasEstaObligadoATener
+      };
+
+      let componentesAdicionalesId = propertyData?.propiedad?.componentesAdicionales?.documentId;
+      
+      if (componentesAdicionalesId) {
+        // Si ya existe un componente adicional, lo actualizamos
+        const componentesResponse = await updateComponenteAdicional({
+          variables: {
+            documentId: componentesAdicionalesId,
+            data: componentesAdicionalesData
+          }
+        });
+        componentesAdicionalesId = componentesResponse.data.updateComponenteAdicional.documentId;
+      } else {
+        // Si no existe, creamos uno nuevo
+        const componentesResponse = await createComponenteAdicional({
+          variables: {
+            data: componentesAdicionalesData
+          }
+        });
+        componentesAdicionalesId = componentesResponse.data.createComponenteAdicional.documentId;
+      }
+
+      // Preparamos los datos de la propiedad
       const { fondoInicial, alicuotaOrdinaria } = calcularMontos();
-      const dataToSubmit = {
+      const propertyUpdateData = {
         identificadores: {
           superior: data.identificadores.superior,
           idSuperior: data.identificadores.idSuperior,
           inferior: data.identificadores.inferior,
-          idInferior: data.identificadores.idInferior
+          idInferior: data.identificadores.idInferior,
         },
         codigoCatastral: data.codigoCatastral,
         areaTotal: data.areaTotal,
-        areasDesglosadas: data.usarAreasDesglosadas && data.areasDesglosadas ? data.areasDesglosadas.map(area => ({
-          area: area.area,
-          tipoDeArea: area.tipoDeArea,
-          nombreAdicional: area.nombreAdicional,
-          tieneTasaAlicuotaOrdinariaEspecial: area.tieneTasaAlicuotaOrdinariaEspecial,
-          tasaAlicuotaOrdinariaEspecial: area.tasaAlicuotaOrdinariaEspecial
-        })) : [],
+        areasDesglosadas: data.usarAreasDesglosadas && data.areasDesglosadas
+          ? data.areasDesglosadas.map((area) => ({
+              area: area.area,
+              tipoDeArea: area.tipoDeArea,
+              nombreAdicional: area.nombreAdicional,
+              tieneTasaAlicuotaOrdinariaEspecial: area.tieneTasaAlicuotaOrdinariaEspecial,
+              tasaAlicuotaOrdinariaEspecial: area.tasaAlicuotaOrdinariaEspecial,
+            }))
+          : [],
         escrituraPdf: data.documentoEscritura?.documentId,
         actaEntregaPdf: data.actaEntregaPdf?.documentId,
         estadoUso: data.estadoUso,
@@ -702,24 +1179,21 @@ export default function EditarPropiedadPage() {
         montoAlicuotaOrdinaria: alicuotaOrdinaria,
         pagos: {
           encargadoDePago: data.encargadoDePago,
-          // fechaExpiracionEncargadoDePago: new Date().toISOString()
-        }
+        },
+        componentesAdicionales: componentesAdicionalesId
       };
-      
-      setIsLoading(true);
-      const response = await actualizarPropiedad({
+
+      // Actualizamos la propiedad
+      await actualizarPropiedad({
         variables: {
           documentId: propertyId,
-          data: dataToSubmit
+          data: propertyUpdateData
         }
       });
 
-      if (response.data?.updatePropiedad) {
-        setShowSuccessModal(true);
-        // Actualizar el caché del proyecto
-        if (typeof projectId === 'string') {
-          mutate();
-        }
+      setShowSuccessModal(true);
+      if (typeof projectId === "string") {
+        mutate();
       }
     } catch (error: any) {
       console.error("Error al actualizar:", error);
@@ -769,9 +1243,21 @@ export default function EditarPropiedadPage() {
 
       {/* Indicador de progreso */}
       <div className="flex gap-2 mb-6">
-        <div className={`flex-1 h-2 rounded-full ${paso >= 1 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
-        <div className={`flex-1 h-2 rounded-full ${paso >= 2 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
-        <div className={`flex-1 h-2 rounded-full ${paso >= 3 ? 'bg-[#008A4B]' : 'bg-gray-200'}`} />
+        <div
+          className={`flex-1 h-2 rounded-full ${
+            paso >= 1 ? "bg-[#008A4B]" : "bg-gray-200"
+          }`}
+        />
+        <div
+          className={`flex-1 h-2 rounded-full ${
+            paso >= 2 ? "bg-[#008A4B]" : "bg-gray-200"
+          }`}
+        />
+        <div
+          className={`flex-1 h-2 rounded-full ${
+            paso >= 3 ? "bg-[#008A4B]" : "bg-gray-200"
+          }`}
+        />
       </div>
 
       <FormProvider {...methods}>
@@ -783,13 +1269,15 @@ export default function EditarPropiedadPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {methods.watch("identificadores.superior") === "Manzana" ? "Está en una:" : "Está en un:"}
+                      {methods.watch("identificadores.superior") === "Manzana"
+                        ? "Está en una:"
+                        : "Está en un:"}
                     </label>
                     <select
                       className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...methods.register("identificadores.superior")}
                     >
-                      {IDENTIFICADORES_SUPERIOR.map(option => (
+                      {IDENTIFICADORES_SUPERIOR.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -797,31 +1285,50 @@ export default function EditarPropiedadPage() {
                     </select>
                     <div className="mt-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre/Identificador {methods.watch("identificadores.superior").toLowerCase() === "manzana" ? "de la" : "del"} {methods.watch("identificadores.superior").toLowerCase()}
+                        Nombre/Identificador{" "}
+                        {methods
+                          .watch("identificadores.superior")
+                          .toLowerCase() === "manzana"
+                          ? "de la"
+                          : "del"}{" "}
+                        {methods
+                          .watch("identificadores.superior")
+                          .toLowerCase()}
                       </label>
                       <Input
                         {...methods.register("identificadores.idSuperior")}
                         placeholder={`Ej: ${
-                          methods.watch("identificadores.superior") === "Manzana" ? "A" :
-                          methods.watch("identificadores.superior") === "Bloque" ? "1" :
-                          methods.watch("identificadores.superior") === "Lote" ? "L-01" :
-                          methods.watch("identificadores.superior") === "Edificio" ? "Torre 1" : ""
+                          methods.watch("identificadores.superior") ===
+                          "Manzana"
+                            ? "A"
+                            : methods.watch("identificadores.superior") ===
+                              "Bloque"
+                            ? "1"
+                            : methods.watch("identificadores.superior") ===
+                              "Lote"
+                            ? "L-01"
+                            : methods.watch("identificadores.superior") ===
+                              "Edificio"
+                            ? "Torre 1"
+                            : ""
                         }`}
                       />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {methods.watch("identificadores.inferior") === "Bodega" || 
-                     methods.watch("identificadores.inferior") === "Ofibodega" || 
-                     methods.watch("identificadores.inferior") === "Oficina" ? 
-                     "Es una:" : "Es un:"}
+                      {methods.watch("identificadores.inferior") === "Bodega" ||
+                      methods.watch("identificadores.inferior") ===
+                        "Ofibodega" ||
+                      methods.watch("identificadores.inferior") === "Oficina"
+                        ? "Es una:"
+                        : "Es un:"}
                     </label>
                     <select
                       className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...methods.register("identificadores.inferior")}
                     >
-                      {IDENTIFICADORES_INFERIOR.map(option => (
+                      {IDENTIFICADORES_INFERIOR.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -829,21 +1336,42 @@ export default function EditarPropiedadPage() {
                     </select>
                     <div className="mt-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre/Identificador {methods.watch("identificadores.inferior") === "Bodega" || 
-                        methods.watch("identificadores.inferior") === "Ofibodega" || 
-                        methods.watch("identificadores.inferior") === "Oficina" ? 
-                        "de la" : "del"} {methods.watch("identificadores.inferior").toLowerCase()}
+                        Nombre/Identificador{" "}
+                        {methods.watch("identificadores.inferior") ===
+                          "Bodega" ||
+                        methods.watch("identificadores.inferior") ===
+                          "Ofibodega" ||
+                        methods.watch("identificadores.inferior") === "Oficina"
+                          ? "de la"
+                          : "del"}{" "}
+                        {methods
+                          .watch("identificadores.inferior")
+                          .toLowerCase()}
                       </label>
                       <Input
                         {...methods.register("identificadores.idInferior")}
                         placeholder={`Ej: ${
-                          methods.watch("identificadores.inferior") === "Bodega" ? "101" :
-                          methods.watch("identificadores.inferior") === "Ofibodega" ? "OB-101" :
-                          methods.watch("identificadores.inferior") === "Local" ? "L-101" :
-                          methods.watch("identificadores.inferior") === "Oficina" ? "OF-101" :
-                          methods.watch("identificadores.inferior") === "Macrolote" ? "ML-101" :
-                          methods.watch("identificadores.inferior") === "Departamento" ? "DEP-101" :
-                          methods.watch("identificadores.inferior") === "Solar" ? "S-101" : ""
+                          methods.watch("identificadores.inferior") === "Bodega"
+                            ? "101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Ofibodega"
+                            ? "OB-101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Local"
+                            ? "L-101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Oficina"
+                            ? "OF-101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Macrolote"
+                            ? "ML-101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Departamento"
+                            ? "DEP-101"
+                            : methods.watch("identificadores.inferior") ===
+                              "Solar"
+                            ? "S-101"
+                            : ""
                         }`}
                       />
                     </div>
@@ -857,7 +1385,7 @@ export default function EditarPropiedadPage() {
                       Código Catastral
                     </label>
                     <Input
-                      placeholder="Ej: 01-0001-001-0001-0-1-1" 
+                      placeholder="Ej: 01-0001-001-0001-0-1-1"
                       {...methods.register("codigoCatastral")}
                     />
                   </div>
@@ -869,7 +1397,7 @@ export default function EditarPropiedadPage() {
                       className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...methods.register("estadoDeConstruccion")}
                     >
-                      {ESTADOS_CONSTRUCCION.map(option => (
+                      {ESTADOS_CONSTRUCCION.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -892,16 +1420,19 @@ export default function EditarPropiedadPage() {
                         documentId,
                         url,
                         nombre: name,
-                        fechaSubida: new Date().toISOString()
+                        fechaSubida: new Date().toISOString(),
                       });
                     }}
                     currentDocument={methods.watch("documentoEscritura")}
                     label="escritura"
+                    onDelete={() => {
+                      methods.setValue("documentoEscritura", undefined);
+                    }}
                   />
                 </div>
               </div>
             )}
-            
+
             {paso === 2 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -925,7 +1456,7 @@ export default function EditarPropiedadPage() {
                       className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...methods.register("actividad")}
                     >
-                      {ACTIVIDADES.map(option => (
+                      {ACTIVIDADES.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -943,7 +1474,7 @@ export default function EditarPropiedadPage() {
                     className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     {...methods.register("encargadoDePago")}
                   >
-                    {ENCARGADOS_PAGO.map(option => (
+                    {ENCARGADOS_PAGO.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -960,18 +1491,23 @@ export default function EditarPropiedadPage() {
                           documentId,
                           url,
                           nombre: name,
-                          fechaSubida: new Date().toISOString()
+                          fechaSubida: new Date().toISOString(),
                         });
                       }}
                       currentDocument={methods.watch("actaEntregaPdf")}
                       label="acta de entrega"
+                      onDelete={() => {
+                        methods.setValue("actaEntregaPdf", undefined);
+                      }}
                     />
                   </div>
                 )}
 
                 {/* Mostrar montos calculados */}
                 <div className="mt-6 space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900">Montos Calculados</h3>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Montos Calculados
+                  </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <label className="block text-sm font-medium text-gray-700">
@@ -992,11 +1528,390 @@ export default function EditarPropiedadPage() {
                         ${formatCurrency(alicuotaOrdinaria)}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {methods.watch("usarAreasDesglosadas") 
+                        {methods.watch("usarAreasDesglosadas")
                           ? "Calculado por áreas desglosadas y sus tasas específicas"
                           : "Basado en el área total y la tasa base del proyecto"}
                       </p>
                     </div>
+                  </div>
+                </div>
+                {/* Componentes Adicionales */}
+                <div className="space-y-6 border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Componentes Adicionales
+                  </h3>
+
+                  {/* Trampas de Grasa */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methods.watch("tieneTrampasGrasa")}
+                        onCheckedChange={(checked) => {
+                          methods.setValue("tieneTrampasGrasa", checked);
+                          if (!checked) {
+                            methods.setValue("trampasGrasa", []);
+                          }
+                        }}
+                      />
+                      <label>¿Tiene trampas de grasa?</label>
+                    </div>
+
+                    {methods.watch("tieneTrampasGrasa") && (
+                      <div className="space-y-4">
+                        {methods.watch("trampasGrasa")?.map((_, index) => (
+                          <div
+                            key={index}
+                            className="space-y-4 p-4 border rounded-lg relative"
+                          >
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Trampa de Grasa #{index + 1}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const trampas =
+                                    methods.getValues("trampasGrasa") || [];
+                                  methods.setValue(
+                                    "trampasGrasa",
+                                    trampas.filter((_, i) => i !== index)
+                                  );
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Estado
+                                </label>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  {...methods.register(
+                                    `trampasGrasa.${index}.estado`
+                                  )}
+                                >
+                                  <option value="operativa">Operativa</option>
+                                  <option value="mantenimientoPendiente">
+                                    Mantenimiento Pendiente
+                                  </option>
+                                  <option value="requiereReparacion">
+                                    Requiere Reparación
+                                  </option>
+                                  <option value="fueraDeServicio">
+                                    Fuera de Servicio
+                                  </option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Tipo
+                                </label>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  {...methods.register(
+                                    `trampasGrasa.${index}.tipo`
+                                  )}
+                                >
+                                  <option value="frontal">Frontal</option>
+                                  <option value="aceroInoxidableInterna">
+                                    Acero Inoxidable Interna
+                                  </option>
+                                  <option value="trasera">Trasera</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Descripción
+                              </label>
+                              <textarea
+                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Ingrese una descripción detallada de la trampa de grasa..."
+                                {...methods.register(
+                                  `trampasGrasa.${index}.descripcion`
+                                )}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Ubicación Interna
+                                </label>
+                                <Input
+                                  {...methods.register(
+                                    `trampasGrasa.${index}.ubicacionInterna`
+                                  )}
+                                  placeholder="Ej: Cocina, Patio trasero..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Fecha de Instalación
+                                </label>
+                                <Input
+                                  type="date"
+                                  {...methods.register(
+                                    `trampasGrasa.${index}.fechaInstalacion`
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const trampas =
+                              methods.getValues("trampasGrasa") || [];
+                            methods.setValue("trampasGrasa", [
+                              ...trampas,
+                              {
+                                estado: "operativa",
+                                descripcion: "",
+                                tipo: "frontal",
+                                ubicacionInterna: "",
+                                fechaInstalacion: "",
+                                documentosRespaldos: [],
+                              },
+                            ]);
+                          }}
+                        >
+                          Añadir Trampa de Grasa
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adecuaciones */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methods.watch("tieneAdecuaciones")}
+                        onCheckedChange={(checked) => {
+                          methods.setValue("tieneAdecuaciones", checked);
+                          if (!checked) {
+                            methods.setValue("adecuaciones", []);
+                          }
+                        }}
+                      />
+                      <label>¿Tiene adecuaciones?</label>
+                    </div>
+
+                    {methods.watch("tieneAdecuaciones") && (
+                      <div className="space-y-4">
+                        {methods.watch("adecuaciones")?.map((_, index) => (
+                          <div
+                            key={index}
+                            className="space-y-4 p-4 border rounded-lg relative"
+                          >
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Adecuación #{index + 1}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const adecuaciones =
+                                    methods.getValues("adecuaciones") || [];
+                                  methods.setValue(
+                                    "adecuaciones",
+                                    adecuaciones.filter((_, i) => i !== index)
+                                  );
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Estado
+                                </label>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  {...methods.register(
+                                    `adecuaciones.${index}.estado`
+                                  )}
+                                >
+                                  <option value="planificada">
+                                    Planificada
+                                  </option>
+                                  <option value="en_proceso">En Proceso</option>
+                                  <option value="completada">Completada</option>
+                                  <option value="cancelada">Cancelada</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Tipo de Adecuación
+                                </label>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  {...methods.register(
+                                    `adecuaciones.${index}.tipoAdecuacion`
+                                  )}
+                                >
+                                  <option value="Estructural">
+                                    Estructural
+                                  </option>
+                                  <option value="Eléctrica">Eléctrica</option>
+                                  <option value="Plomería">Plomería</option>
+                                  <option value="Acabados">Acabados</option>
+                                  <option value="Seguridad">Seguridad</option>
+                                  <option value="Otra">Otra</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Descripción
+                              </label>
+                              <textarea
+                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008A4B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Ingrese una descripción detallada de la adecuación..."
+                                {...methods.register(
+                                  `adecuaciones.${index}.descripcion`
+                                )}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Responsable
+                                </label>
+                                <Input
+                                  {...methods.register(
+                                    `adecuaciones.${index}.responsable`
+                                  )}
+                                  placeholder="Nombre del responsable"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                  Fecha de Realización
+                                </label>
+                                <Input
+                                  type="date"
+                                  {...methods.register(
+                                    `adecuaciones.${index}.fechaRealizacion`
+                                  )}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Costo
+                              </label>
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  className="pr-8"
+                                  placeholder="0.00"
+                                  {...methods.register(
+                                    `adecuaciones.${index}.costo`,
+                                    {
+                                      setValueAs: (v) =>
+                                        v === "" ? 0 : parseFloat(v),
+                                    }
+                                  )}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                  $
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const adecuaciones =
+                              methods.getValues("adecuaciones") || [];
+                            methods.setValue("adecuaciones", [
+                              ...adecuaciones,
+                              {
+                                estado: "planificada",
+                                descripcion: "",
+                                tipoAdecuacion: "Estructural",
+                                responsable: "",
+                                fechaRealizacion: "",
+                                costo: 0,
+                                documentosRespaldos: [],
+                              },
+                            ]);
+                          }}
+                        >
+                          Añadir Adecuación
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Campos adicionales de trampas de grasa */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methods.watch("ObligadoTrampaDeGrasa")}
+                        onCheckedChange={(checked) => {
+                          methods.setValue("ObligadoTrampaDeGrasa", checked);
+                          if (!checked) {
+                            methods.setValue(
+                              "CuantasTrampasEstaObligadoATener",
+                              0
+                            );
+                          }
+                        }}
+                      />
+                      <label>¿Está obligado a tener trampas de grasa?</label>
+                    </div>
+
+                    {methods.watch("ObligadoTrampaDeGrasa") && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          ¿Cuántas trampas está obligado a tener?
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          {...methods.register(
+                            "CuantasTrampasEstaObligadoATener",
+                            {
+                              setValueAs: (v) => (v === "" ? 0 : parseInt(v)),
+                            }
+                          )}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1020,9 +1935,9 @@ export default function EditarPropiedadPage() {
                                   nombre: res[0].name,
                                   url: res[0].ufsUrl,
                                   tipoArchivo: "imagen",
-                                  fechaSubida: new Date().toISOString()
-                                }
-                              }
+                                  fechaSubida: new Date().toISOString(),
+                                },
+                              },
                             });
 
                             if (data?.createArchivo) {
@@ -1037,8 +1952,9 @@ export default function EditarPropiedadPage() {
                         console.error("Error uploading:", error);
                       }}
                       appearance={{
-                        button: "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
-                        allowedContent: "hidden"
+                        button:
+                          "border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2",
+                        allowedContent: "hidden",
                       }}
                       content={{
                         button({ ready }) {
@@ -1051,7 +1967,7 @@ export default function EditarPropiedadPage() {
                             );
                           }
                           return "Cargando...";
-                        }
+                        },
                       }}
                     />
                     {methods.watch("imagen") && (
@@ -1060,13 +1976,13 @@ export default function EditarPropiedadPage() {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Preview de la imagen */}
                   {methods.watch("imagen") && (
                     <div className="mt-4">
                       <div className="relative w-full max-w-md h-48 overflow-hidden rounded-lg border border-gray-200">
-                        <Image 
-                          src={methods.watch("imagen.url")} 
+                        <Image
+                          src={methods.watch("imagen.url")}
                           alt="Preview de la propiedad"
                           fill
                           style={{ objectFit: "cover" }}
@@ -1078,8 +1994,19 @@ export default function EditarPropiedadPage() {
                           className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
                           title="Eliminar imagen"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -1157,11 +2084,15 @@ export default function EditarPropiedadPage() {
           message="La propiedad ha sido actualizada correctamente."
           onClose={() => {
             setShowSuccessModal(false);
-            router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
+            router.push(
+              `/dashboard/proyectos/${projectId}/propiedades/${propertyId}`
+            );
           }}
           actionLabel="Ver Propiedad"
           onAction={() => {
-            router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
+            router.push(
+              `/dashboard/proyectos/${projectId}/propiedades/${propertyId}`
+            );
           }}
         />
       )}
@@ -1181,4 +2112,4 @@ export default function EditarPropiedadPage() {
       )}
     </motion.div>
   );
-} 
+}

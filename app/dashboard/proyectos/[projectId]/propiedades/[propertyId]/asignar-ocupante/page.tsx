@@ -318,8 +318,81 @@ export default function AsignarOcupantePage() {
             }
           }
         });
+      } else if (tipoOcupante === "externo") {
+        // Para ocupantes externos, crear directamente el ocupante con la información
+        let ocupanteData: any = {
+          tipoOcupante: "externo",
+          propiedad: propertyId,
+          tipoPersona,
+        };
+
+        if (tipoPersona === "Natural") {
+          ocupanteData.datosPersonaNatural = {
+            razonSocial: nombreCompleto,
+            cedula,
+            cedulaPdf: documentos.cedulaPdf?.documentId,
+          };
+
+          if (aplicaRuc) {
+            ocupanteData.datosPersonaNatural.aplicaRuc = true;
+            ocupanteData.datosPersonaNatural.ruc = ruc;
+            ocupanteData.datosPersonaNatural.rucPdf = documentos.rucPdf?.documentId;
+          }
+        } else {
+          ocupanteData.datosPersonaJuridica = {
+            razonSocial,
+            nombreComercial,
+            rucs: rucsPersonaJuridica.map(rucItem => ({
+              ruc: rucItem.ruc,
+              rucPdf: rucItem.rucPdf?.documentId
+            })),
+            representanteLegalEsEmpresa: esEmpresaRepresentante,
+          };
+
+          if (esEmpresaRepresentante) {
+            ocupanteData.datosPersonaJuridica.empresaRepresentanteLegal = {
+              nombreComercial: empresaRepresentanteLegal.nombreComercial,
+              direccionLegal: empresaRepresentanteLegal.direccionLegal,
+              observaciones: empresaRepresentanteLegal.observaciones,
+              nombreRepresentanteLegal: empresaRepresentanteLegal.nombreRepresentanteLegalRL,
+              cedulaRepresentanteLegal: empresaRepresentanteLegal.cedulaRepresentanteLegal,
+              autorizacionRepresentacionPdf: documentos.autorizacionRepresentacionPdf?.documentId,
+              cedulaRepresentanteLegalPdf: documentos.cedulaRepresentanteLegalEmpresaPdf?.documentId,
+              rucs: rucsEmpresaRepresentante.map(rucItem => ({
+                ruc: rucItem.ruc,
+                rucPdf: rucItem.rucPdf?.documentId
+              }))
+            };
+          } else {
+            ocupanteData.datosPersonaJuridica.nombreRepresentanteLegal = nombreRepresentante;
+            ocupanteData.datosPersonaJuridica.cedulaRepresentanteLegal = cedulaRepresentante;
+            ocupanteData.datosPersonaJuridica.cedulaRepresentanteLegalPdf = documentos.cedulaRepresentanteLegalPdf?.documentId;
+            ocupanteData.datosPersonaJuridica.nombramientoRepresentanteLegalPdf = documentos.nombramientoRepresentanteLegalPdf?.documentId;
+          }
+        }
+
+        // Agregar datos de contacto directamente al ocupante
+        if (Object.values(contactoAccesos).some(val => val !== '')) {
+          ocupanteData.contactoAccesos = contactoAccesos;
+        }
+        if (Object.values(contactoAdministrativo).some(val => val !== '')) {
+          ocupanteData.contactoAdministrativo = contactoAdministrativo;
+        }
+        if (Object.values(contactoGerente).some(val => val !== '')) {
+          ocupanteData.contactoGerente = contactoGerente;
+        }
+        if (Object.values(contactoProveedores).some(val => val !== '')) {
+          ocupanteData.contactoProveedores = contactoProveedores;
+        }
+
+        // Crear el ocupante externo directamente
+        await createOcupante({
+          variables: {
+            data: ocupanteData
+          }
+        });
       } else {
-        // Crear perfil de cliente para arrendatario o externo
+        // Para arrendatarios, mantener la lógica existente de crear perfil de cliente
         let perfilClienteData: any = {
           tipoPersona,
         };
@@ -368,7 +441,7 @@ export default function AsignarOcupantePage() {
           }
         }
 
-        // Agregar datos de contacto directamente (no dentro de un objeto contactos)
+        // Agregar datos de contacto al perfil de cliente
         if (Object.values(contactoAccesos).some(val => val !== '')) {
           perfilClienteData.contactoAccesos = contactoAccesos;
         }
@@ -393,7 +466,7 @@ export default function AsignarOcupantePage() {
         await createOcupante({
           variables: {
             data: {
-              tipoOcupante,
+              tipoOcupante: "arrendatario",
               perfilCliente: perfilClienteResponse.createPerfilCliente.documentId,
               propiedad: propertyId
             }
@@ -560,6 +633,9 @@ export default function AsignarOcupantePage() {
                         }}
                         currentDocument={documentos.cedulaPdf || undefined}
                         label="cédula"
+                        onDelete={() => {
+                          setDocumentos({ ...documentos, cedulaPdf: null });
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
@@ -597,6 +673,9 @@ export default function AsignarOcupantePage() {
                               }}
                               currentDocument={documentos.rucPdf || undefined}
                               label="RUC"
+                              onDelete={() => {
+                                setDocumentos({ ...documentos, rucPdf: null });
+                              }}
                             />
                           </div>
                         </div>
@@ -653,6 +732,11 @@ export default function AsignarOcupantePage() {
                             }}
                             currentDocument={rucItem.rucPdf || undefined}
                             label="RUC"
+                            onDelete={() => {
+                              const newRucs = [...rucsPersonaJuridica];
+                              newRucs[index].rucPdf = null;
+                              setRucsPersonaJuridica(newRucs);
+                            }}
                           />
                         </div>
                       ))}
@@ -784,6 +868,11 @@ export default function AsignarOcupantePage() {
                                   }}
                                   currentDocument={rucItem.rucPdf || undefined}
                                   label="RUC"
+                                  onDelete={() => {
+                                    const newRucs = [...rucsEmpresaRepresentante];
+                                    newRucs[index].rucPdf = null;
+                                    setRucsEmpresaRepresentante(newRucs);
+                                  }}
                                 />
                               </div>
                             ))}
@@ -811,6 +900,9 @@ export default function AsignarOcupantePage() {
                                 }}
                                 currentDocument={documentos.autorizacionRepresentacionPdf || undefined}
                                 label="autorización de representación"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, autorizacionRepresentacionPdf: null });
+                                }}
                               />
                             </div>
                             <div>
@@ -826,6 +918,9 @@ export default function AsignarOcupantePage() {
                                 }}
                                 currentDocument={documentos.cedulaRepresentanteLegalEmpresaPdf || undefined}
                                 label="cédula del representante legal RL"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, cedulaRepresentanteLegalEmpresaPdf: null });
+                                }}
                               />
                             </div>
                           </div>
@@ -870,6 +965,9 @@ export default function AsignarOcupantePage() {
                                 }}
                                 currentDocument={documentos.cedulaRepresentanteLegalPdf || undefined}
                                 label="cédula del representante legal"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, cedulaRepresentanteLegalPdf: null });
+                                }}
                               />
                             </div>
                             <div>
@@ -885,6 +983,9 @@ export default function AsignarOcupantePage() {
                                 }}
                                 currentDocument={documentos.nombramientoRepresentanteLegalPdf || undefined}
                                 label="nombramiento del representante legal"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, nombramientoRepresentanteLegalPdf: null });
+                                }}
                               />
                             </div>
                           </div>

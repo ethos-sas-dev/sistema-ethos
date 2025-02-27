@@ -542,7 +542,11 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                           });
                         }}
                         currentDocument={documentos.cedulaPdf || undefined}
+                        
                         label="cédula"
+                        onDelete={() => {
+                          setDocumentos({ ...documentos, cedulaPdf: null });
+                        }}
                       />
                     </div>
                   </div>
@@ -583,6 +587,9 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                         }}
                         currentDocument={documentos.rucPdf || undefined}
                         label="RUC"
+                        onDelete={() => {
+                          setDocumentos({ ...documentos, rucPdf: null });
+                        }}
                       />
                     </div>
                   )}
@@ -642,6 +649,11 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                           }}
                           currentDocument={rucItem.rucPdf || undefined}
                           label="RUC"
+                            onDelete={() => {
+                            const newRucs = [...rucsPersonaJuridica];
+                            newRucs[index].rucPdf = null;
+                            setRucsPersonaJuridica(newRucs);
+                          }}
                         />
                         {index > 0 && (
                           <Button
@@ -802,6 +814,11 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                                   }}
                                   currentDocument={rucItem.rucPdf || undefined}
                                   label="RUC"
+                                  onDelete={() => {
+                                    const newRucs = [...rucsEmpresaRepresentante];
+                                    newRucs[index].rucPdf = null;
+                                    setRucsEmpresaRepresentante(newRucs);
+                                  }}
                                 />
                                 {index > 0 && (
                                   <Button
@@ -838,6 +855,9 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                                 }}
                                 currentDocument={documentos.autorizacionRepresentacionPdf || undefined}
                                 label="autorización de representación"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, autorizacionRepresentacionPdf: null });
+                                }}
                               />
                               <SimpleDocumentUpload
                                 onUploadComplete={(documentId, url, name) => {
@@ -848,6 +868,9 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                                 }}
                                 currentDocument={documentos.cedulaRepresentanteLegalEmpresaPdf || undefined}
                                 label="cédula del representante legal RL"
+                                onDelete={() => {
+                                  setDocumentos({ ...documentos, cedulaRepresentanteLegalEmpresaPdf: null });
+                                }}
                               />
                             </div>
                           </div>
@@ -881,6 +904,9 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                               }}
                               currentDocument={documentos.cedulaRepresentanteLegalPdf || undefined}
                               label="cédula del representante legal"
+                              onDelete={() => {
+                                setDocumentos({ ...documentos, cedulaRepresentanteLegalPdf: null });
+                              }}
                             />
                             <SimpleDocumentUpload
                               onUploadComplete={(documentId, url, name) => {
@@ -891,6 +917,9 @@ export default function EditarPropietarioPage({ params }: PageProps) {
                               }}
                               currentDocument={documentos.nombramientoRepresentanteLegalPdf || undefined}
                               label="nombramiento del representante legal"
+                              onDelete={() => {
+                                setDocumentos({ ...documentos, nombramientoRepresentanteLegalPdf: null });
+                              }}
                             />
                           </div>
                         </div>

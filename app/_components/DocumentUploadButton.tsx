@@ -27,11 +27,12 @@ export function DocumentUploadButton({
   onUploadComplete,
   disabled,
   currentDocument,
-  uploadId = Math.random().toString(36).substring(7), // Generar ID único si no se proporciona
+  uploadId = Math.random().toString(36).substring(7),
   onDeleteDocument
 }: DocumentUploadButtonProps) {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showUploadButton, setShowUploadButton] = useState(false);
 
   const handleUploadComplete = async (res: { url: string; name: string }[]) => {
     try {
@@ -41,7 +42,7 @@ export function DocumentUploadButton({
       await onUploadComplete(res[0].url, res[0].name);
       
       setUploadStatus('success');
-      // No ocultamos el feedback hasta que se complete la actualización
+      setShowUploadButton(false);
     } catch (error) {
       console.error('Error en la subida:', error);
       setUploadStatus('error');
@@ -52,7 +53,6 @@ export function DocumentUploadButton({
     }
   };
 
-  // Cuando el documento cambia (se actualiza), ocultamos el feedback
   useEffect(() => {
     if (currentDocument?.url && uploadStatus === 'success') {
       setTimeout(() => {
@@ -111,19 +111,21 @@ export function DocumentUploadButton({
               </Button>
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <div className="p-1">
-                  <button 
-                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    onClick={() => {
-                      // Reiniciar el estado para permitir una nueva subida
-                      setUploadStatus('idle');
-                      setShowFeedback(false);
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Cambiar documento
-                  </button>
+                  {!showUploadButton && (
+                    <button 
+                      className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={() => {
+                        setShowUploadButton(true);
+                        setUploadStatus('idle');
+                        setShowFeedback(false);
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Cambiar documento
+                    </button>
+                  )}
                   
                   {onDeleteDocument && (
                     <button 
@@ -193,6 +195,98 @@ export function DocumentUploadButton({
                   <div className="w-6 h-6 border-2 border-[#008A4B] border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
+            )}
+          </div>
+        )}
+        
+        {/* Botón de subida para reemplazar documento existente */}
+        {showUploadButton && currentDocument?.url && (
+          <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg p-4 z-20">
+            <div className="mb-2 text-sm text-gray-600">Subir nuevo documento</div>
+            <div className="relative">
+              <UploadButton
+                endpoint="propertyDocument"
+                onClientUploadComplete={handleUploadComplete}
+                onUploadError={(error: Error) => {
+                  console.error('Error uploading:', error);
+                  setUploadStatus('error');
+                  setShowFeedback(true);
+                  setTimeout(() => {
+                    setShowFeedback(false);
+                    setUploadStatus('idle');
+                    setShowUploadButton(false);
+                  }, 3000);
+                }}
+                onUploadBegin={() => {
+                  setUploadStatus('uploading');
+                  setShowFeedback(true);
+                }}
+                appearance={{
+                  button: `border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center gap-2 ${
+                    uploadStatus !== 'idle' ? 'opacity-50 cursor-not-allowed' : ''
+                  }`,
+                  allowedContent: "hidden"
+                }}
+                content={{
+                  button({ ready }) {
+                    if (ready) {
+                      if (uploadStatus === 'uploading') {
+                        return (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#008A4B] border-t-transparent" />
+                            <span>Subiendo...</span>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <DocumentArrowUpIcon className="w-4 h-4" />
+                          <span>Seleccionar archivo</span>
+                        </>
+                      );
+                    }
+                    return 'Cargando...';
+                  }
+                }}
+                disabled={uploadStatus !== 'idle'}
+              />
+
+              {showFeedback && (
+                <div className={`
+                  absolute inset-0 flex items-center justify-center rounded-md
+                  ${uploadStatus === 'success' ? 'bg-green-50' : 
+                    uploadStatus === 'error' ? 'bg-red-50' : 
+                    'bg-gray-50'}
+                `}>
+                  {uploadStatus === 'success' && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                      <span className="text-sm text-green-600">¡Documento actualizado!</span>
+                    </div>
+                  )}
+                  {uploadStatus === 'error' && (
+                    <div className="flex items-center gap-2">
+                      <XCircleIcon className="w-5 h-5 text-red-600" />
+                      <span className="text-sm text-red-600">Error al subir</span>
+                    </div>
+                  )}
+                  {uploadStatus === 'uploading' && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-[#008A4B] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm text-gray-600">Subiendo...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {uploadStatus === 'idle' && (
+              <button
+                className="mt-2 text-sm text-gray-500 hover:text-gray-700"
+                onClick={() => setShowUploadButton(false)}
+              >
+                Cancelar
+              </button>
             )}
           </div>
         )}

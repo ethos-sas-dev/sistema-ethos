@@ -35,7 +35,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../../../../../_components/ui/dialog";
-import { ImageIcon, ImageMinus } from "lucide-react";
+import { ImageIcon, ImageMinus, User2Icon } from "lucide-react";
 
 // Interfaces para los documentos
 interface Document {
@@ -514,6 +514,7 @@ const GET_PROPERTY_DETAILS = gql`
             url
           }
           aplicaRuc
+          ruc
           rucPdf {
             documentId
             nombre
@@ -1665,9 +1666,11 @@ export default function PropertyDetailPage({
         </div>
 
         {!property.propietario ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">
-              Esta propiedad no tiene un propietario asignado
+          <div className="text-center py-12">
+            <UserIcon className="mx-auto h-10 w-10 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay propietario</h3>
+            <p className="mt-1 text-sm text-gray-500 mb-6">
+              Asigna un propietario a esta propiedad para comenzar.
             </p>
             {isAdmin && (
               <Button
@@ -2793,12 +2796,13 @@ export default function PropertyDetailPage({
             <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No hay ocupantes</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Asigna un ocupante a esta propiedad para comenzar.
+              {property.propietario ? "Asigna un ocupante a esta propiedad para comenzar." : "Asigna un propietario primero."}
             </p>
             <div className="mt-6">
               <Button
                 onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-ocupante`)}
                 className="bg-[#008A4B] text-white hover:bg-[#006837]"
+                disabled={property.propietario == null}
               >
                 Asignar Ocupante
               </Button>
@@ -3067,12 +3071,21 @@ export default function PropertyDetailPage({
             <UploadButton
               endpoint="propertyImage"
               onClientUploadComplete={async (res) => {
-                if (res && res[0]) {
-                  await handleChangeImage(res[0].ufsUrl, res[0].name);
+                try {
+                  setUploadingImage(true);
+                  if (res && res[0]) {
+                    await handleChangeImage(res[0].ufsUrl, res[0].name);
+                  }
+                } finally {
+                  setUploadingImage(false);
                 }
               }}
               onUploadError={(error: Error) => {
                 console.error("Error uploading:", error);
+                setUploadingImage(false);
+              }}
+              onUploadBegin={() => {
+                setUploadingImage(true);
               }}
               appearance={{
                 button: "w-full border border-[#008A4B] !text-[#008A4B] hover:bg-[#008A4B] hover:!text-white text-sm font-medium px-4 py-2 rounded-md transition-all flex items-center justify-center gap-2",
