@@ -362,12 +362,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ projectI
                       >
                         <option value="">Seleccionar perfil operacional</option>
                         {perfilesOperacionalesData?.perfilesOperacional?.map((perfil: any) => {
+                          console.log(perfil.usuario.username)
                           const perfilesSeleccionados = methods.watch('perfiles_operacionales') || [];
                           // No mostrar perfiles ya seleccionados
                           if (!perfilesSeleccionados.includes(perfil.documentId)) {
                             return (
                               <option key={perfil.documentId} value={perfil.documentId}>
-                                {perfil.usuario.username}
+                                {perfil?.usuario?.username}
                               </option>
                             );
                           }
