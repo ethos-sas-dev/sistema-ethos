@@ -7,18 +7,14 @@ import { Button } from "../../../../../_components/ui/button";
 import { formatNumber } from "../../../../../_lib/utils";
 import {
   ArrowLeftIcon,
-  DocumentArrowDownIcon,
   UserIcon,
   PhoneIcon,
   EnvelopeIcon,
   BuildingOffice2Icon,
-  ClipboardDocumentListIcon,
-  DocumentIcon,
   IdentificationIcon,
-  XMarkIcon,
-  PencilIcon,
   UserPlusIcon,
   UserGroupIcon,
+  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { use } from "react";
@@ -35,7 +31,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../../../../../_components/ui/dialog";
-import { ImageIcon, ImageMinus, User2Icon } from "lucide-react";
+import { ImageIcon, ImageMinus, ShuffleIcon, User2Icon, UserCircle } from "lucide-react";
 
 // Interfaces para los documentos
 interface Document {
@@ -1162,7 +1158,7 @@ export default function PropertyDetailPage({
                       <circle cx="5" cy="12" r="1" />
                     </svg>
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
                     <div className="p-1">
                       <button 
                         onClick={() => setShowImageModal(true)}
@@ -1178,7 +1174,7 @@ export default function PropertyDetailPage({
                             onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar`)}
                             className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                           >
-                            <PencilIcon className="h-4 w-4 mr-2" />
+                            <BuildingOffice2Icon className="h-4 w-4 mr-2" />
                             Editar Propiedad
                           </button>
                           
@@ -1196,15 +1192,22 @@ export default function PropertyDetailPage({
                               onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/editar-propietario`)}
                               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                             >
-                             <PencilIcon className="h-4 w-4 mr-2" />
+                             <UserIcon className="h-4 w-4 mr-2" />
                               Editar Propietario
+                            </button>
+                            <button 
+                              onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-propietario`)}
+                              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                            >
+                              <ArrowsRightLeftIcon className="h-4 w-4 mr-2" />
+                              Reasignar Propietario
                             </button>
                             <button 
                             onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-ocupante`)}
                             className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                           >
                             <UserPlusIcon className="h-4 w-4 mr-2" />
-                            Asignar Ocupante
+                              {property?.ocupantes && property?.ocupantes?.length > 0 ? "Manejar Ocupantes" : "Asignar Ocupante"}
                             </button>
                             </>
                           )}
@@ -1260,10 +1263,10 @@ export default function PropertyDetailPage({
                   Código Catastral
                 </h3>
                 <p className="text-base font-medium mt-1">
-                  {property.codigoCatastral}
+                  {property.codigoCatastral ? property.codigoCatastral : "-"}
                 </p>
               </div>
-              {property.ocupantes && property.ocupantes.length > 0 && (
+              {property.ocupantes && property.ocupantes.length > 0 ? (
                 <div className="mt-4 space-y-1">
                   <h3 className="text-sm font-medium text-gray-500">
                     Ocupante
@@ -1295,6 +1298,13 @@ export default function PropertyDetailPage({
                   ) : (
                     <p className="text-base mt-1">-</p>
                   )}
+                </div>
+              ) : (
+                <div className="mt-4 space-y-1">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Ocupante
+                  </h3>
+                  <p className="text-base mt-1">No hay ocupantes asignados</p>
                 </div>
               )}
             </div>
@@ -1746,9 +1756,20 @@ export default function PropertyDetailPage({
 
             {/* Nueva sección de información detallada del propietario */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h4 className="text-base font-semibold text-gray-900 mb-4">
-                Información del Propietario
-              </h4>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                  Información del Propietario
+                </h4>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}/asignar-propietario`)}
+                    className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <ArrowsRightLeftIcon className="h-3 w-3 mr-1" />
+                    Reasignar
+                  </button>
+                </div>
+              </div>
 
               {/* Información para Persona Jurídica */}
               {property.propietario.tipoPersona === "Juridica" && property.propietario.datosPersonaJuridica && (

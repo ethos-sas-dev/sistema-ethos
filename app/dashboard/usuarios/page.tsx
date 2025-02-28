@@ -753,7 +753,7 @@ export default function UsuariosPage() {
                   </p>
                 </div>
               </TabsContent>
-            </div>
+    </div>
           </Tabs>
           
           <DialogFooter className="mt-6">
