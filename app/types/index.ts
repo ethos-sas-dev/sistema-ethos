@@ -53,11 +53,12 @@ export interface Project {
     ubicacion: string;
     tasaBaseFondoInicial: number;
     tasaBaseAlicuotaOrdinaria: number;
-    perfilOperacional?: {
+    perfiles_operacionales?: Array<{
+      documentId?: string;
       usuario: {
         username: string;
       };
-    };
+    }>;
     unidadNegocio?: {
       nombre: string;
     };

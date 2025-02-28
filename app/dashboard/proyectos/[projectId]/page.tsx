@@ -33,7 +33,8 @@ const GET_PROJECT_DETAILS = gql`
       ubicacion
       tasaBaseFondoInicial
       tasaBaseAlicuotaOrdinaria
-      perfilOperacional {
+      perfiles_operacionales {
+        documentId
         usuario {
           username
         }
@@ -111,176 +112,330 @@ interface AlicuotaExtraordinaria {
   fechaFin: string;
 }
 
+// Constantes para la paginación
+const ITEMS_PER_PAGE = 30;
+
 export default function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
   const { role } = useAuth();
   const router = useRouter();
-  const { project, isLoading, isError, mutate } = useProject(projectId);
+  const { project, stats, isLoading, isError, fetchProperties } = useProject(projectId);
 
   const isAdmin = role === 'Administrador' || role === 'Directorio';
 
-  const [searchTerm, setSearchTerm] = useState('');
+  // Estados para las propiedades y la paginación
+  const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
+  const [hasMoreProperties, setHasMoreProperties] = useState(true);
+  const [page, setPage] = useState(0);
+  
+  // Estados para los filtros
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState<{
     tipoOcupacion: string | null;
     actividad: string | null;
     estadoUso: string | null;
+    identificador: string | null;
+    idSuperior: string | null;
+    idInferior: string | null;
   }>({
     tipoOcupacion: null,
     actividad: null,
-    estadoUso: null
+    estadoUso: null,
+    identificador: null,
+    idSuperior: null,
+    idInferior: null
   });
   const [showFilters, setShowFilters] = useState(false);
   const [sortOption, setSortOption] = useState<string | null>(null);
 
+  // Cargar propiedades iniciales cuando el proyecto esté disponible
+  useEffect(() => {
+    if (project) {
+      loadInitialProperties();
+    }
+  }, [project]);
+
+  // Función para cargar las propiedades iniciales
+  const loadInitialProperties = async () => {
+    setIsLoadingProperties(true);
+    try {
+      const initialProperties = await fetchProperties(ITEMS_PER_PAGE, 0);
+      setProperties(initialProperties);
+      setFilteredProperties(initialProperties);
+      setPage(1);
+      setHasMoreProperties(initialProperties.length === ITEMS_PER_PAGE);
+    } catch (error) {
+      console.error("Error al cargar propiedades iniciales:", error);
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  };
+
+  // Función para cargar más propiedades
+  const loadMoreProperties = async () => {
+    if (!hasMoreProperties || isLoadingProperties) return;
+    
+    setIsLoadingProperties(true);
+    try {
+      const offset = page * ITEMS_PER_PAGE;
+      const moreProperties = await fetchProperties(ITEMS_PER_PAGE, offset);
+      
+      if (moreProperties.length === 0) {
+        setHasMoreProperties(false);
+      } else {
+        const newProperties = [...properties, ...moreProperties];
+        setProperties(newProperties);
+        setPage(prev => prev + 1);
+        setHasMoreProperties(moreProperties.length === ITEMS_PER_PAGE);
+        
+        // Aplicar filtros a las nuevas propiedades
+        applyFilters(newProperties);
+      }
+    } catch (error) {
+      console.error("Error al cargar más propiedades:", error);
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  };
+
+  // Función para aplicar filtros a las propiedades
+  const applyFilters = (propsToFilter = properties) => {
+    let filtered = [...propsToFilter];
+    
+    // Aplicar búsqueda por texto
+    if (searchTerm) {
+      const searchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
+      
+      filtered = filtered.filter((property) => {
+        // Texto completo de identificadores para búsqueda
+        const identificadoresText = `${property.identificadores?.superior || ''} ${property.identificadores?.idSuperior || ''} ${property.identificadores?.inferior || ''} ${property.identificadores?.idInferior || ''}`.toLowerCase();
+        
+        // Texto del propietario para búsqueda
+        const propietarioText = property.propietario ? (
+          property.propietario.tipoPersona === "Natural" 
+            ? (property.propietario.datosPersonaNatural?.razonSocial || '').toLowerCase()
+            : (property.propietario.datosPersonaJuridica?.razonSocial || '').toLowerCase()
+        ) : '';
+        
+        // Verificar si todos los términos de búsqueda están presentes
+        return searchTerms.every(term => 
+          identificadoresText.includes(term) || propietarioText.includes(term)
+        );
+      });
+    }
+    
+    // Aplicar filtro de tipo de ocupación
+    if (activeFilters.tipoOcupacion) {
+      if (activeFilters.tipoOcupacion === 'arrendado') {
+        filtered = filtered.filter((property) => 
+          property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") || false
+        );
+      } else if (activeFilters.tipoOcupacion === 'propietario') {
+        filtered = filtered.filter((property) => 
+          !(property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") || false)
+        );
+      }
+    }
+    
+    // Aplicar filtro de actividad
+    if (activeFilters.actividad) {
+      filtered = filtered.filter((property) => 
+        property.actividad === activeFilters.actividad
+      );
+    }
+    
+    // Aplicar filtro de estado de uso
+    if (activeFilters.estadoUso) {
+      filtered = filtered.filter((property) => 
+        property.estadoUso === activeFilters.estadoUso
+      );
+    }
+
+    // Aplicar filtros de identificadores superiores (tipo)
+    if (activeFilters.identificador) {
+      filtered = filtered.filter((property) => 
+        property.identificadores?.superior?.toLowerCase() === activeFilters.identificador?.toLowerCase()
+      );
+    }
+    
+    // Aplicar filtros de identificadores superiores (número)
+    if (activeFilters.idSuperior) {
+      filtered = filtered.filter((property) => 
+        property.identificadores?.idSuperior === activeFilters.idSuperior
+      );
+    }
+    
+    // Aplicar filtros de identificadores inferiores (tipo)
+    if (activeFilters.idInferior) {
+      filtered = filtered.filter((property) => 
+        property.identificadores?.idInferior === activeFilters.idInferior
+      );
+    }
+    
+    // Aplicar ordenamiento
+    if (sortOption) {
+      filtered.sort((a, b) => {
+        // Función auxiliar para convertir cualquier formato de fecha a timestamp
+        const getTimestamp = (dateStr: string | null | undefined): number => {
+          if (!dateStr) return 0;
+          try {
+            return new Date(dateStr).getTime();
+          } catch (e) {
+            console.error("Error al convertir fecha:", dateStr, e);
+            return 0;
+          }
+        };
+
+        switch (sortOption) {
+          case 'newest':
+            const timestampA = getTimestamp(a.createdAt);
+            const timestampB = getTimestamp(b.createdAt);
+            if (timestampA === 0 || timestampB === 0) {
+              return b.documentId.localeCompare(a.documentId);
+            }
+            return timestampB - timestampA;
+          case 'oldest':
+            const timestampAOld = getTimestamp(a.createdAt);
+            const timestampBOld = getTimestamp(b.createdAt);
+            if (timestampAOld === 0 || timestampBOld === 0) {
+              return a.documentId.localeCompare(b.documentId);
+            }
+            return timestampAOld - timestampBOld;
+          case 'recently_updated':
+            const updatedA = getTimestamp(a.updatedAt);
+            const updatedB = getTimestamp(b.updatedAt);
+            if (updatedA === 0 || updatedB === 0) {
+              const createdA = getTimestamp(a.createdAt);
+              const createdB = getTimestamp(b.createdAt);
+              if (createdA === 0 || createdB === 0) {
+                return b.documentId.localeCompare(a.documentId);
+              }
+              return createdB - createdA;
+            }
+            return updatedB - updatedA;
+          case 'area_desc':
+            return (b.areaTotal || 0) - (a.areaTotal || 0);
+          case 'area_asc':
+            return (a.areaTotal || 0) - (b.areaTotal || 0);
+          case 'alpha_asc':
+            const idTextA = `${a.identificadores?.superior || ''} ${a.identificadores?.idSuperior || ''} ${a.identificadores?.inferior || ''} ${a.identificadores?.idInferior || ''}`.toLowerCase();
+            const idTextB = `${b.identificadores?.superior || ''} ${b.identificadores?.idSuperior || ''} ${b.identificadores?.inferior || ''} ${b.identificadores?.idInferior || ''}`.toLowerCase();
+            return idTextA.localeCompare(idTextB);
+          case 'alpha_desc':
+            const idTextADesc = `${a.identificadores?.superior || ''} ${a.identificadores?.idSuperior || ''} ${a.identificadores?.inferior || ''} ${a.identificadores?.idInferior || ''}`.toLowerCase();
+            const idTextBDesc = `${b.identificadores?.superior || ''} ${b.identificadores?.idSuperior || ''} ${b.identificadores?.inferior || ''} ${b.identificadores?.idInferior || ''}`.toLowerCase();
+            return idTextBDesc.localeCompare(idTextADesc);
+          default:
+            return 0;
+        }
+      });
+    }
+    
+    setFilteredProperties(filtered);
+  };
+
+  // Aplicar filtros cuando cambien las propiedades o los filtros
+  useEffect(() => {
+    applyFilters();
+  }, [searchTerm, activeFilters, sortOption, properties]);
+
   // Extraer valores únicos para los filtros
   const getUniqueActividades = () => {
-    if (!project?.propiedades) return [];
-    const actividades = project.propiedades
-      .map((p: Property) => p.actividad)
-      .filter((value: string | undefined, index: number, self: (string | undefined)[]) => 
+    if (!properties.length) return [];
+    const actividades = properties
+      .map((p) => p.actividad)
+      .filter((value, index, self) => 
         value && self.indexOf(value) === index
       ) as string[];
     return actividades;
   };
 
-  useEffect(() => {
-    if (project?.propiedades) {
-      let filtered = [...project.propiedades];
-      
-      // Aplicar búsqueda por texto
-      if (searchTerm) {
-        const searchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-        
-        filtered = filtered.filter((property: Property) => {
-          // Texto completo de identificadores para búsqueda
-          const identificadoresText = `${property.identificadores?.superior || ''} ${property.identificadores?.idSuperior || ''} ${property.identificadores?.inferior || ''} ${property.identificadores?.idInferior || ''}`.toLowerCase();
-          
-          // Texto del propietario para búsqueda
-          const propietarioText = property.propietario ? (
-            property.propietario.tipoPersona === "Natural" 
-              ? (property.propietario.datosPersonaNatural?.razonSocial || '').toLowerCase()
-              : (property.propietario.datosPersonaJuridica?.razonSocial || '').toLowerCase()
-          ) : '';
-          
-          // Verificar si todos los términos de búsqueda están presentes
-          return searchTerms.every(term => 
-            identificadoresText.includes(term) || propietarioText.includes(term)
-          );
-        });
-      }
-      
-      // Aplicar filtro de tipo de ocupación
-      if (activeFilters.tipoOcupacion) {
-        if (activeFilters.tipoOcupacion === 'arrendado') {
-          filtered = filtered.filter((property: Property) => 
-            property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") || false
-          );
-        } else if (activeFilters.tipoOcupacion === 'propietario') {
-          filtered = filtered.filter((property: Property) => 
-            !(property.ocupantes?.some(ocupante => ocupante.tipoOcupante === "arrendatario") || false)
-          );
-        }
-      }
-      
-      // Aplicar filtro de actividad
-      if (activeFilters.actividad) {
-        filtered = filtered.filter((property: Property) => 
-          property.actividad === activeFilters.actividad
-        );
-      }
-      
-      // Aplicar filtro de estado de uso
-      if (activeFilters.estadoUso) {
-        filtered = filtered.filter((property: Property) => 
-          property.estadoUso === activeFilters.estadoUso
-        );
-      }
-      
-      // Aplicar ordenamiento
-      if (sortOption) {
-        filtered.sort((a, b) => {
-          // Función auxiliar para convertir cualquier formato de fecha a timestamp
-          const getTimestamp = (dateStr: string | null | undefined): number => {
-            if (!dateStr) return 0;
-            try {
-              return new Date(dateStr).getTime();
-            } catch (e) {
-              console.error("Error al convertir fecha:", dateStr, e);
-              return 0;
-            }
-          };
-
-          // Función para extraer el timestamp del ID (asumiendo que es un ObjectId de MongoDB o similar)
-          const getTimestampFromId = (id: string | null | undefined): number => {
-            if (!id) return 0;
-            // Si el ID tiene un formato que incluye timestamp (como ObjectId de MongoDB)
-            // podemos intentar extraerlo, o simplemente usar el ID para comparación lexicográfica
-            return id.length;
-          };
-
-          switch (sortOption) {
-            case 'newest':
-              // Intentar usar createdAt, si no está disponible usar el ID
-              const timestampA = getTimestamp(a.createdAt);
-              const timestampB = getTimestamp(b.createdAt);
-              if (timestampA === 0 || timestampB === 0) {
-                // Fallback a comparación por ID
-                return b.documentId.localeCompare(a.documentId);
-              }
-              return timestampB - timestampA;
-            case 'oldest':
-              // Intentar usar createdAt, si no está disponible usar el ID
-              const timestampAOld = getTimestamp(a.createdAt);
-              const timestampBOld = getTimestamp(b.createdAt);
-              if (timestampAOld === 0 || timestampBOld === 0) {
-                // Fallback a comparación por ID
-                return a.documentId.localeCompare(b.documentId);
-              }
-              return timestampAOld - timestampBOld;
-            case 'recently_updated':
-              // Intentar usar updatedAt, si no está disponible usar createdAt o ID
-              const updatedA = getTimestamp(a.updatedAt);
-              const updatedB = getTimestamp(b.updatedAt);
-              if (updatedA === 0 || updatedB === 0) {
-                // Fallback a createdAt o ID
-                const createdA = getTimestamp(a.createdAt);
-                const createdB = getTimestamp(b.createdAt);
-                if (createdA === 0 || createdB === 0) {
-                  return b.documentId.localeCompare(a.documentId);
-                }
-                return createdB - createdA;
-              }
-              return updatedB - updatedA;
-            case 'area_desc':
-              return (b.areaTotal || 0) - (a.areaTotal || 0);
-            case 'area_asc':
-              return (a.areaTotal || 0) - (b.areaTotal || 0);
-            case 'alpha_asc':
-              // Ordenar alfabéticamente por identificadores (A-Z)
-              const idTextA = `${a.identificadores?.superior || ''} ${a.identificadores?.idSuperior || ''} ${a.identificadores?.inferior || ''} ${a.identificadores?.idInferior || ''}`.toLowerCase();
-              const idTextB = `${b.identificadores?.superior || ''} ${b.identificadores?.idSuperior || ''} ${b.identificadores?.inferior || ''} ${b.identificadores?.idInferior || ''}`.toLowerCase();
-              return idTextA.localeCompare(idTextB);
-            case 'alpha_desc':
-              // Ordenar alfabéticamente por identificadores (Z-A)
-              const idTextADesc = `${a.identificadores?.superior || ''} ${a.identificadores?.idSuperior || ''} ${a.identificadores?.inferior || ''} ${a.identificadores?.idInferior || ''}`.toLowerCase();
-              const idTextBDesc = `${b.identificadores?.superior || ''} ${b.identificadores?.idSuperior || ''} ${b.identificadores?.inferior || ''} ${b.identificadores?.idInferior || ''}`.toLowerCase();
-              return idTextBDesc.localeCompare(idTextADesc);
-            default:
-              return 0;
-          }
-        });
-      }
-      
-      setFilteredProperties(filtered);
+  // Extraer valores únicos para los identificadores superiores (manzanas, bloques, etc.)
+  const getUniqueIdentificadoresSuperiores = () => {
+    if (!properties.length) return [];
+    const identificadores = properties
+      .map((p) => p.identificadores?.superior)
+      .filter((value, index, self) => 
+        value && self.indexOf(value) === index
+      ) as string[];
+    return identificadores;
+  };
+  
+  // Extraer valores únicos para los números de identificadores superiores
+  const getUniqueIdSuperiores = () => {
+    if (!properties.length) return [];
+    
+    // Si hay un filtro de tipo de identificador activo, solo mostrar los números de ese tipo
+    if (activeFilters.identificador) {
+      return properties
+        .filter(p => p.identificadores?.superior?.toLowerCase() === activeFilters.identificador?.toLowerCase())
+        .map(p => p.identificadores?.idSuperior)
+        .filter((value, index, self) => 
+          value && self.indexOf(value) === index
+        ) as string[];
     }
-  }, [searchTerm, project?.propiedades, activeFilters, sortOption]);
+    
+    // Si no hay filtro activo, mostrar todos los números
+    return properties
+      .map(p => p.identificadores?.idSuperior)
+      .filter((value, index, self) => 
+        value && self.indexOf(value) === index
+      ) as string[];
+  };
+  
+  // Extraer valores únicos para los números de identificadores inferiores
+  const getUniqueIdInferiores = () => {
+    if (!properties.length) return [];
+    
+    // Aplicar filtros en cascada
+    let filteredProps = [...properties];
+    
+    if (activeFilters.identificador) {
+      filteredProps = filteredProps.filter(p => 
+        p.identificadores?.superior?.toLowerCase() === activeFilters.identificador?.toLowerCase()
+      );
+    }
+    
+    if (activeFilters.idSuperior) {
+      filteredProps = filteredProps.filter(p => 
+        p.identificadores?.idSuperior === activeFilters.idSuperior
+      );
+    }
+    
+    return filteredProps
+      .map(p => p.identificadores?.idInferior)
+      .filter((value, index, self) => 
+        value && self.indexOf(value) === index
+      ) as string[];
+  };
 
-  const handleFilterChange = (filterType: 'tipoOcupacion' | 'actividad' | 'estadoUso', value: string | null) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      [filterType]: prev[filterType] === value ? null : value
-    }));
+  const handleFilterChange = (filterType: 'tipoOcupacion' | 'actividad' | 'estadoUso' | 'identificador' | 'idSuperior' | 'idInferior', value: string | null) => {
+    // Si cambiamos el tipo de identificador, resetear los filtros de números
+    if (filterType === 'identificador' && value !== activeFilters.identificador) {
+      setActiveFilters(prev => ({
+        ...prev,
+        [filterType]: prev[filterType] === value ? null : value,
+        idSuperior: null,
+        idInferior: null
+      }));
+    } 
+    // Si cambiamos el número superior, resetear el filtro de número inferior
+    else if (filterType === 'idSuperior' && value !== activeFilters.idSuperior) {
+      setActiveFilters(prev => ({
+        ...prev,
+        [filterType]: prev[filterType] === value ? null : value,
+        idInferior: null
+      }));
+    } 
+    // Para otros filtros, comportamiento normal
+    else {
+      setActiveFilters(prev => ({
+        ...prev,
+        [filterType]: prev[filterType] === value ? null : value
+      }));
+    }
   };
 
   const handleSortChange = (value: string | null) => {
@@ -291,26 +446,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
     setActiveFilters({
       tipoOcupacion: null,
       actividad: null,
-      estadoUso: null
+      estadoUso: null,
+      identificador: null,
+      idSuperior: null,
+      idInferior: null
     });
     setSortOption(null);
   };
 
   if (isLoading) return <LoadingSpinner />;
   if (isError) return <ErrorMessage />;
-  if (!project) return null;
-
-  const getProjectStats = (properties: Property[]) => {
-    return {
-      total: properties.length,
-      active: properties.filter(p => p.estadoUso === "enUso").length,
-      totalArea: properties.reduce((sum, prop) => {
-        const totalArea = prop.areasDesglosadas?.reduce((areaSum, area) => 
-          areaSum + area.area, 0) || 0;
-        return sum + totalArea;
-      }, 0),
-    };
-  };
+  if (!project || !stats) return null;
 
   return (
     <motion.div
@@ -331,13 +477,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
             </Button>
           </Link>
           {isAdmin && (
-            <Button 
-              className="absolute top-6 right-6 z-10 bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2"
-              onClick={() => router.push(`/dashboard/proyectos/${projectId}/nueva-propiedad`)}
-            >
-              <PlusIcon className="w-4 h-4" />
-              Nueva Propiedad
-            </Button>
+            <div className="absolute top-6 right-6 z-10 flex gap-2">
+              <Button 
+                className="bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2"
+                onClick={() => router.push(`/dashboard/proyectos/${projectId}/editar`)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                </svg>
+                Editar Proyecto
+              </Button>
+              <Button 
+                className="bg-[#008A4B] hover:bg-[#006837] flex items-center gap-2"
+                onClick={() => router.push(`/dashboard/proyectos/${projectId}/nueva-propiedad`)}
+              >
+                <PlusIcon className="w-4 h-4" />
+                Nueva Propiedad
+              </Button>
+            </div>
           )}
           <Image
             src={project.fotoProyecto?.url || "/ofibodega.png"}
@@ -367,6 +524,23 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
           <div className="max-w-3xl">
             <h2 className="text-lg font-medium text-gray-900 mb-2">Sobre el proyecto</h2>
             <p className="text-gray-600">{project.descripcion}</p>
+            
+            {/* Perfiles Operacionales */}
+            {project.perfiles_operacionales && project.perfiles_operacionales.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-md font-medium text-gray-900 mb-2">Administradores</h3>
+                <div className="flex flex-wrap gap-2">
+                  {project.perfiles_operacionales.map((perfil, index) => (
+                    <span 
+                      key={perfil.documentId || index} 
+                      className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700"
+                    >
+                      {perfil.usuario?.username}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -374,35 +548,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-6">
         <div className="bg-white rounded-xl border p-6">
-          <div className="text-3xl font-light">{project.propiedades.length}</div>
+          <div className="text-3xl font-light">{stats.totalCount}</div>
           <div className="text-gray-500 mt-1">Propiedades Totales</div>
-          {/* {isAdmin && (
-            <Button variant="outline" className="w-full mt-4">
-              Cargar
-            </Button>
-          )} */}
         </div>
         <div className="bg-white rounded-xl border p-6">
           <div className="text-3xl font-light">
-            {project.propiedades.filter((p: Property) => p.estadoUso === 'enUso').length}
+            {stats.activeCount}
           </div>
           <div className="text-gray-500 mt-1">Propiedades En Uso</div>
-          {/* {isAdmin && (
-            <Button variant="outline" className="w-full mt-4">
-              Filtrar
-            </Button>
-          )} */}
         </div>
         <div className="bg-white rounded-xl border p-6">
           <div className="text-3xl font-light">
-            {formatNumber(project.propiedades.reduce((sum: number, prop: Property) => sum + (prop.areaTotal || 0), 0), true)} m²
+            {formatNumber(stats.totalArea, true)} m²
           </div>
           <div className="text-gray-500 mt-1">Área Total</div>
-          {/* {isAdmin && (
-            <Button variant="outline" className="w-full mt-4">
-              Ver detalles
-            </Button>
-          )} */}
         </div>
       </div>
 
@@ -552,6 +711,68 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                   </div>
                 </div>
               )}
+
+              {getUniqueIdentificadoresSuperiores().length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Tipo de Identificador</p>
+                  <div className="flex flex-wrap gap-2">
+                    {getUniqueIdentificadoresSuperiores().map((identificador) => (
+                      <Button
+                        key={identificador}
+                        variant={activeFilters.identificador === identificador ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleFilterChange('identificador', identificador)}
+                        className={activeFilters.identificador === identificador ? 'bg-[#008A4B] hover:bg-[#006837]' : ''}
+                      >
+                        {identificador}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {activeFilters.identificador && getUniqueIdSuperiores().length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">{`${activeFilters.identificador} #`}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {getUniqueIdSuperiores().map((idSuperior) => (
+                      <Button
+                        key={idSuperior}
+                        variant={activeFilters.idSuperior === idSuperior ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleFilterChange('idSuperior', idSuperior)}
+                        className={activeFilters.idSuperior === idSuperior ? 'bg-[#008A4B] hover:bg-[#006837]' : ''}
+                      >
+                        {idSuperior}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {activeFilters.idSuperior && getUniqueIdInferiores().length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">
+                    {properties.find(p => 
+                      p.identificadores?.superior === activeFilters.identificador && 
+                      p.identificadores?.idSuperior === activeFilters.idSuperior
+                    )?.identificadores?.inferior || 'Identificador Inferior'} #
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {getUniqueIdInferiores().map((idInferior) => (
+                      <Button
+                        key={idInferior}
+                        variant={activeFilters.idInferior === idInferior ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleFilterChange('idInferior', idInferior)}
+                        className={activeFilters.idInferior === idInferior ? 'bg-[#008A4B] hover:bg-[#006837]' : ''}
+                      >
+                        {idInferior}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -598,41 +819,121 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ projec
                 />
               </span>
             )}
+            {activeFilters.identificador && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                {activeFilters.identificador}
+                <XMarkIcon 
+                  className="w-4 h-4 ml-1 cursor-pointer" 
+                  onClick={() => handleFilterChange('identificador', null)}
+                />
+              </span>
+            )}
+            {activeFilters.idSuperior && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                {activeFilters.identificador} {activeFilters.idSuperior}
+                <XMarkIcon 
+                  className="w-4 h-4 ml-1 cursor-pointer" 
+                  onClick={() => handleFilterChange('idSuperior', null)}
+                />
+              </span>
+            )}
+            {activeFilters.idInferior && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                {properties.find(p => 
+                  p.identificadores?.superior === activeFilters.identificador && 
+                  p.identificadores?.idSuperior === activeFilters.idSuperior
+                )?.identificadores?.inferior || 'Identificador'} {activeFilters.idInferior}
+                <XMarkIcon 
+                  className="w-4 h-4 ml-1 cursor-pointer" 
+                  onClick={() => handleFilterChange('idInferior', null)}
+                />
+              </span>
+            )}
           </div>
         )}
       </div>
 
       {/* Properties Grid */}
       <div className="bg-white rounded-xl border overflow-x-auto">
-        {project.propiedades && filteredProperties.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {filteredProperties.map((property) => (
-              <PropertyCard
-                key={property.documentId}
-                property={property}
-                projectId={projectId}
-                projectImage={property.imagen?.url}
-              />
-            ))}
-          </div>
+        {properties.length > 0 && filteredProperties.length > 0 ? (
+          <>
+            <div className="p-4 border-b">
+              <div className="text-sm text-gray-500">
+                Mostrando {filteredProperties.length} propiedades
+                {filteredProperties.length < properties.length && ` (filtradas de ${properties.length})`}
+                {properties.length < stats.totalCount && ` de ${stats.totalCount} totales`}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+              {filteredProperties.map((property) => (
+                <PropertyCard
+                  key={property.documentId}
+                  property={property}
+                  projectId={projectId}
+                  projectImage={property.imagen?.url}
+                />
+              ))}
+            </div>
+            {hasMoreProperties && (
+              <div className="p-6 pt-0 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={loadMoreProperties}
+                  disabled={isLoadingProperties}
+                  className="text-[#008A4B] border-[#008A4B]/30 hover:bg-[#008A4B]/10"
+                >
+                  {isLoadingProperties ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#008A4B] mr-2"></div>
+                  ) : null}
+                  Cargar más propiedades
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="p-8 text-center text-gray-500">
-            {project.propiedades.length === 0 ? (
-              <>
-                No hay propiedades registradas en este proyecto. <br />
-                {isAdmin && "Puedes agregar una nueva propiedad usando el botón 'Nueva Propiedad'."}
-              </>
+            {properties.length === 0 ? (
+              isLoadingProperties ? (
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#008A4B]"></div>
+                </div>
+              ) : (
+                <>
+                  No hay propiedades registradas en este proyecto. <br />
+                  {isAdmin && "Puedes agregar una nueva propiedad usando el botón 'Nueva Propiedad'."}
+                </>
+              )
             ) : (
-              <>
-                No se encontraron propiedades con los filtros seleccionados. <br />
-                <Button 
-                  variant="link" 
-                  onClick={clearFilters}
-                  className="text-[#008A4B]"
-                >
-                  Limpiar filtros
-                </Button>
-              </>
+              <div className="space-y-4">
+                <p>No se encontraron propiedades con los filtros seleccionados.</p>
+                
+                <div className="flex flex-col items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={clearFilters}
+                    className="text-[#008A4B] border-[#008A4B]/30 hover:bg-[#008A4B]/10"
+                  >
+                    Limpiar filtros
+                  </Button>
+                  
+                  {hasMoreProperties && (
+                    <div className="mt-6">
+                      <p className="mb-4 text-md">¿No encuentras lo que buscas? Prueba a cargar más propiedades:</p>
+                      <Button 
+                        variant="default" 
+                        onClick={loadMoreProperties}
+                        disabled={isLoadingProperties}
+                        className="bg-[#008A4B] hover:bg-[#006837]"
+                      >
+                        {isLoadingProperties ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                        ) : null}
+                        Cargar más propiedades
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}

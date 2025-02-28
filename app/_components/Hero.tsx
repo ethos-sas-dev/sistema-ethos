@@ -4,7 +4,7 @@ export default function Hero() {
   return (
     <div className="relative h-[759px] bg-black overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[url('/hero-bg.png')] bg-cover bg-center transform scale-105 hover:scale-100 transition-transform duration-[2000ms]"></div>
+        <div className="absolute inset-0 bg-[url('/almax3-cover.jpg')] bg-cover bg-center transform scale-105 hover:scale-100 transition-transform duration-[2000ms]"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80"></div>
       </div>
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white px-4">

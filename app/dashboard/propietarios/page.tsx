@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
@@ -9,7 +9,8 @@ import {
   BuildingOffice2Icon,
   UserIcon,
   PhoneIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline"
 import { Button } from "../../_components/ui/button"
 import Link from "next/link"
@@ -122,6 +123,101 @@ const GET_ALL_PROPERTIES = gql`
 const GET_PROPERTIES_BY_PROJECT = gql`
   query GetPropertiesByProject($projectId: ID!) {
     proyecto(documentId: $projectId) {
+      propiedades(pagination: { limit: -1 }) {
+        documentId
+        identificadores {
+          idSuperior
+          superior
+          idInferior
+          inferior
+        }
+        estadoUso
+        actividad
+        propietario {
+          contactoAccesos {
+            nombreCompleto
+            telefono
+            email
+          }
+          contactoAdministrativo {
+            telefono
+            email
+          }
+          contactoGerente {
+            telefono
+            email
+          }
+          contactoProveedores {
+            telefono
+            email
+          }
+          tipoPersona
+          datosPersonaNatural {
+            cedula
+            ruc
+            razonSocial
+          }
+          datosPersonaJuridica {
+            razonSocial
+            nombreComercial
+            rucPersonaJuridica {
+              ruc
+            }
+          }
+        }
+        ocupantes {
+          tipoOcupante
+          datosPersonaJuridica {
+            razonSocial
+            rucPersonaJuridica {
+              ruc
+            }
+          }
+          datosPersonaNatural {
+            razonSocial
+            ruc
+          }
+          perfilCliente {
+            datosPersonaNatural {
+              razonSocial
+              ruc
+            }
+            datosPersonaJuridica {
+              razonSocial
+              rucPersonaJuridica {
+                ruc
+              }
+            }
+            contactoAccesos {
+              nombreCompleto
+              telefono
+              email
+            }
+            contactoAdministrativo {
+              telefono
+              email
+            }
+            contactoGerente {
+              telefono
+              email
+            }
+            contactoProveedores {
+              telefono
+              email
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Nueva consulta para obtener propiedades de múltiples proyectos
+const GET_PROPERTIES_BY_MULTIPLE_PROJECTS = gql`
+  query GetPropertiesByMultipleProjects {
+    proyectos(pagination: { limit: -1 }) {
+      documentId
+      nombre
       propiedades(pagination: { limit: -1 }) {
         documentId
         identificadores {
@@ -327,6 +423,7 @@ export default function OccupantsPage() {
   const { user, role } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedLot, setSelectedLot] = useState("Todos")
+  const [isRefetching, setIsRefetching] = useState(false)
 
   // Restringir acceso solo a admin, directorio y jefe operativo
   if (!["Jefe Operativo", "Administrador", "Directorio"].includes(role as string)) {
@@ -335,20 +432,37 @@ export default function OccupantsPage() {
   }
 
   // Determinar qué consulta usar según el rol
-  const { data, loading, error } = useQuery(
+  const { data, loading, error, networkStatus, refetch } = useQuery(
     (role as string) === "Directorio"
       ? GET_ALL_PROPERTIES
-      : GET_PROPERTIES_BY_PROJECT,
+      : (role as string) === "Jefe Operativo" || (role as string) === "Administrador"
+        ? GET_PROPERTIES_BY_MULTIPLE_PROJECTS
+        : GET_PROPERTIES_BY_PROJECT,
     {
       variables:
         (role as string) === "Directorio"
           ? {}
-          : { projectId: user?.perfil_operacional?.proyectosAsignados?.[0]?.documentId || "" },
+          : (role as string) === "Jefe Operativo" || (role as string) === "Administrador"
+            ? {} // No necesitamos pasar projectIds ya que obtendremos todos los proyectos y filtraremos después
+            : { projectId: user?.perfil_operacional?.proyectosAsignados?.[0]?.documentId || "" },
       skip: !user || ((role as string) !== "Directorio" && !user?.perfil_operacional?.proyectosAsignados?.[0]?.documentId),
+      fetchPolicy: "cache-and-network", // Usa la caché primero y luego actualiza con datos del servidor
+      nextFetchPolicy: "cache-first", // Para navegaciones posteriores, usa primero la caché
+      notifyOnNetworkStatusChange: true, // Para mostrar estados de carga durante refetch
     }
   );
 
-  if (loading) {
+  // Detectar cuando está refrescando datos (networkStatus 4 es refetch)
+  useEffect(() => {
+    setIsRefetching(networkStatus === 4);
+  }, [networkStatus]);
+
+  // Función para forzar la actualización de datos
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  if (loading && !data) {
     return (
       <div className="w-full h-48 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#008A4B]"></div>
@@ -373,7 +487,21 @@ export default function OccupantsPage() {
         proyecto: item.proyecto?.data,
         propietario: item.propietario?.data,
       }))
-    : data?.proyecto?.propiedades || [];
+    : (role as string) === "Jefe Operativo" || (role as string) === "Administrador"
+      ? data?.proyectos
+          ?.filter((project: any) => 
+            user?.perfil_operacional?.proyectosAsignados?.some(
+              (p: any) => p.documentId === project.documentId
+            )
+          )
+          ?.flatMap((project: any) => 
+            project.propiedades?.map((item: any) => ({
+              ...item,
+              proyecto: { documentId: project.documentId, nombre: project.nombre },
+              propietario: item.propietario,
+            })) || []
+          ) || []
+      : data?.proyecto?.propiedades || [];
 
   const handleClearFilters = () => {
     setSearchQuery("")
@@ -409,13 +537,30 @@ export default function OccupantsPage() {
               : `Propiedades de ${user?.perfil_operacional?.proyectosAsignados?.slice(0,5).map(p => p.nombre).join(', ')}${(user?.perfil_operacional?.proyectosAsignados?.length ?? 0) > 5 ? '...' : ''}`}
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 border-[#008A4B] text-[#008A4B] hover:bg-[#008A4B] hover:text-white"
-        >
-          <ArrowDownTrayIcon className="w-5 h-5" />
-          Exportar a Excel
-        </Button>
+        <div className="flex items-center gap-3">
+          {isRefetching && (
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#008A4B] mr-2"></div>
+              Actualizando...
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            onClick={handleRefresh}
+            disabled={isRefetching}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+            title="Actualizar datos"
+          >
+            <ArrowPathIcon className={`w-5 h-5 ${isRefetching ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 border-[#008A4B] text-[#008A4B] hover:bg-[#008A4B] hover:text-white"
+          >
+            <ArrowDownTrayIcon className="w-5 h-5" />
+            Exportar a Excel
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -480,7 +625,9 @@ export default function OccupantsPage() {
                 <td colSpan={role === "Directorio" ? 6 : 5} className="px-6 py-10 text-center text-gray-500">
                   <BuildingOffice2Icon className="mx-auto h-12 w-12 text-gray-400" />
                   <p className="mt-2 text-sm font-medium">No hay propietarios ni ocupantes registrados</p>
-                  <p className="mt-1 text-sm">en {user?.perfil_operacional?.proyectosAsignados?.slice(0,5).map(p => p.nombre).join(', ')}{(user?.perfil_operacional?.proyectosAsignados?.length ?? 0) > 5 ? '...' : ''} </p>
+                  {role !== "Directorio" && (
+                    <p className="mt-1 text-sm">en {user?.perfil_operacional?.proyectosAsignados?.slice(0,5).map(p => p.nombre).join(', ')}{(user?.perfil_operacional?.proyectosAsignados?.length ?? 0) > 5 ? '...' : ''} </p>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -515,7 +662,7 @@ export default function OccupantsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
                         {property.propietario?.datosPersonaNatural?.razonSocial || property.propietario?.datosPersonaJuridica?.razonSocial || 'Sin propietario registrado'}
                       </div>

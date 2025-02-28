@@ -1,8 +1,10 @@
 import useSWR from 'swr';
 import { gql } from '@apollo/client';
 import { client } from '../../_lib/apollo/apolloClient';
-import type { Project } from '../../types';
+import type { Project, Property } from '../../types';
+import { useState } from 'react';
 
+// Consulta para obtener los detalles del proyecto sin propiedades
 const GET_PROJECT_DETAILS = gql`
   query GetProjectDetails($documentId: ID!) {
     proyecto(documentId: $documentId) {
@@ -12,7 +14,8 @@ const GET_PROJECT_DETAILS = gql`
       ubicacion
       tasaBaseFondoInicial
       tasaBaseAlicuotaOrdinaria
-      perfilOperacional {
+      perfiles_operacionales {
+        documentId
         usuario {
           username
         }
@@ -23,7 +26,18 @@ const GET_PROJECT_DETAILS = gql`
       fotoProyecto {
         url
       }
-      propiedades(pagination: { limit: -1 }) {
+      createdAt
+      updatedAt
+      publishedAt
+    }
+  }
+`;
+
+// Consulta para obtener las propiedades paginadas
+const GET_PROJECT_PROPERTIES = gql`
+  query GetProjectProperties($documentId: ID!, $limit: Int!, $offset: Int!) {
+    proyecto(documentId: $documentId) {
+      propiedades(pagination: { limit: $limit, start: $offset }) {
         imagen {
           documentId
           url
@@ -67,10 +81,25 @@ const GET_PROJECT_DETAILS = gql`
             telefono
           }
         }
+        createdAt
+        updatedAt
       }
-      createdAt
-      updatedAt
-      publishedAt
+    }
+  }
+`;
+
+// Consulta para obtener solo las estadísticas del proyecto
+const GET_PROJECT_STATS = gql`
+  query GetProjectStats($documentId: ID!) {
+    proyecto(documentId: $documentId) {
+      propiedades(pagination: { limit: -1 }) {
+        documentId
+        estadoUso
+        areaTotal
+        areasDesglosadas {
+          area
+        }
+      }
     }
   }
 `;
@@ -88,14 +117,66 @@ const projectFetcher = async (projectId: string): Promise<Project> => {
 
     return {
       ...data.proyecto,
-      perfilOperacional: data.proyecto?.perfilOperacional,
+      perfiles_operacionales: data.proyecto?.perfiles_operacionales || [],
       unidadNegocio: data.proyecto?.unidadNegocio,
       fotoProyecto: data.proyecto?.fotoProyecto,
-      propiedades: data.proyecto?.propiedades || []
+      propiedades: [] // Inicialmente vacío, se cargará con la paginación
     };
   } catch (error) {
     console.error('Error fetching project:', error);
     throw error;
+  }
+};
+
+const propertiesFetcher = async (projectId: string, limit: number, offset: number): Promise<Property[]> => {
+  try {
+    const { data } = await client.query({
+      query: GET_PROJECT_PROPERTIES,
+      variables: { 
+        documentId: projectId,
+        limit,
+        offset
+      },
+    });
+
+    if (!data || !data.proyecto || !data.proyecto.propiedades) {
+      return [];
+    }
+
+    return data.proyecto.propiedades;
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    throw error;
+  }
+};
+
+const statsFetcher = async (projectId: string): Promise<{
+  totalCount: number;
+  activeCount: number;
+  totalArea: number;
+}> => {
+  try {
+    const { data } = await client.query({
+      query: GET_PROJECT_STATS,
+      variables: { documentId: projectId },
+    });
+
+    if (!data || !data.proyecto || !data.proyecto.propiedades) {
+      return { totalCount: 0, activeCount: 0, totalArea: 0 };
+    }
+
+    const properties = data.proyecto.propiedades;
+    const totalCount = properties.length;
+    const activeCount = properties.filter((p: any) => p.estadoUso === 'enUso').length;
+    const totalArea = properties.reduce((sum: number, prop: any) => {
+      const areaTotal = prop.areaTotal || 0;
+      return sum + areaTotal;
+    }, 0);
+
+    return { totalCount, activeCount, totalArea };
+  } catch (error) {
+    console.error('Error fetching project stats:', error);
+    return { totalCount: 0, activeCount: 0, totalArea: 0 };
   }
 };
 
@@ -118,13 +199,13 @@ const localStorageProvider = () => {
 };
 
 export function useProject(projectId: string | null) {
-  const { data, error, mutate } = useSWR<Project>(
+  const { data: project, error: projectError, mutate } = useSWR<Project>(
     projectId ? `project-${projectId}` : null,
     projectId ? () => projectFetcher(projectId) : null,
     {
-      revalidateOnFocus: false,      // No revalidar al focus para evitar llamadas innecesarias
-      revalidateOnReconnect: true,   // Sí revalidar al reconectar por si hubo cambios
-      dedupingInterval: 5000,        // Deduplicar requests en 5 segundos
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
       loadingTimeout: 3000,
       onErrorRetry: (error: any, key, config, revalidate, { retryCount }) => {
         if (error.status === 404) return;
@@ -134,10 +215,25 @@ export function useProject(projectId: string | null) {
     }
   );
 
+  const { data: stats, error: statsError } = useSWR(
+    projectId ? `project-stats-${projectId}` : null,
+    projectId ? () => statsFetcher(projectId) : null,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 10000,
+    }
+  );
+
   return {
-    project: data,
-    isLoading: !error && !data,
-    isError: error,
-    mutate,  // Exponemos mutate para usarlo manualmente cuando sea necesario
+    project,
+    stats,
+    isLoading: (!projectError && !project) || (!statsError && !stats),
+    isError: projectError || statsError,
+    mutate,
+    fetchProperties: async (limit: number, offset: number) => {
+      if (!projectId) return [];
+      return propertiesFetcher(projectId, limit, offset);
+    }
   };
 } 

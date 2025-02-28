@@ -18,8 +18,9 @@ const GET_ALL_PROJECTS = gql`
         nombre
         descripcion
         ubicacion
-        perfilOperacional {
+        perfiles_operacionales {
           data {
+            documentId
             usuario {
               data {
                 username
@@ -48,12 +49,19 @@ const GET_ALL_PROJECTS = gql`
 // Consulta para obtener proyectos asignados (Jefe Operativo y Administrador)
 const GET_ASSIGNED_PROJECTS = gql`
   query GetAssignedProjects($documentId: ID!) {
-    perfilOperacional(documentId: $documentId) {
+    perfilesOperacional(filters: { documentId: { eq: $documentId } }) {
+      documentId
       proyectosAsignados {
         documentId
         nombre
         descripcion
         ubicacion
+        perfiles_operacionales {
+          documentId
+          usuario {
+            username
+          }
+        }
         unidadNegocio {
           nombre
         }
@@ -74,11 +82,12 @@ interface Project {
   nombre: string;
   descripcion: string;
   ubicacion: string;
-  perfilOperacional?: {
+  perfiles_operacionales?: Array<{
+    documentId: string;
     usuario: {
       username: string;
     };
-  };
+  }>;
   unidadNegocio?: {
     nombre: string;
   };
@@ -113,6 +122,8 @@ export default function ProyectosPage() {
     skip: !user || (role !== 'Directorio' && !user?.perfil_operacional?.documentId),
   })
 
+
+
   if (!allowedRoles.includes(role || '')) return null
 
   if (loading) {
@@ -137,11 +148,15 @@ export default function ProyectosPage() {
     ? data?.proyectos?.data?.map((item: any) => ({
         id: item.id,
         ...item,
-        perfilOperacional: item.perfilOperacional?.data,
+        perfiles_operacionales: item.perfiles_operacionales?.data?.map((perfil: any) => ({
+          documentId: perfil.documentId,
+          usuario: perfil.usuario?.data
+        })) || [],
         unidadNegocio: item.unidadNegocio?.data,
         fotoProyecto: item.fotoProyecto?.data
       })) || []
-    : data?.perfilOperacional?.proyectosAsignados || []
+    : data?.perfilesOperacional?.[0]?.proyectosAsignados || []
+
 
   if (projects.length === 0) {
     return (
@@ -200,11 +215,6 @@ export default function ProyectosPage() {
               <p className="mt-4 text-sm text-gray-600 line-clamp-3">
                 {project.descripcion}
               </p>
-              {(role === 'Administrador' || role === 'Directorio') && project.perfilOperacional?.usuario && (
-                <p className="mt-2 text-sm text-gray-500">
-                  Asignado a: {project.perfilOperacional.usuario.username}
-                </p>
-              )}
             </div>
           </div>
         ))}
