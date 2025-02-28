@@ -530,6 +530,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ projectI
       {/* Modal de estado - Solo se muestra cuando statusModal.show es true */}
       {statusModal.show && (
         <StatusModal
+          open={statusModal.show}
+          onOpenChange={(open) => setStatusModal({ ...statusModal, show: open })}
           type={statusModal.success ? "success" : "error"}
           title={statusModal.success ? "¡Éxito!" : "Error"}
           message={statusModal.message}

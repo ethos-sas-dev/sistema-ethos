@@ -1063,6 +1063,8 @@ export default function EditarPropietarioPage({ params }: PageProps) {
       {/* Modal de éxito */}
       {showSuccessModal && (
         <StatusModal
+          open={showSuccessModal}
+          onOpenChange={(open) => setShowSuccessModal(open)}
           type="success"
           title="¡Propietario actualizado exitosamente!"
           message="Los cambios han sido guardados correctamente."
@@ -1079,6 +1081,8 @@ export default function EditarPropietarioPage({ params }: PageProps) {
       {/* Modal de error */}
       {showErrorModal && (
         <StatusModal
+          open={showErrorModal}
+          onOpenChange={(open) => setShowErrorModal(open)}
           type="error"
           title="Error al actualizar el propietario"
           message={errorMessage}

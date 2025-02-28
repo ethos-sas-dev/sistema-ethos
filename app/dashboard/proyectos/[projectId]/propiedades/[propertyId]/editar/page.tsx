@@ -2079,6 +2079,8 @@ export default function EditarPropiedadPage() {
 
       {showSuccessModal && (
         <StatusModal
+          open={showSuccessModal}
+          onOpenChange={(open) => setShowSuccessModal(open)}
           type="success"
           title="¡Propiedad actualizada exitosamente!"
           message="La propiedad ha sido actualizada correctamente."
@@ -2099,6 +2101,8 @@ export default function EditarPropiedadPage() {
 
       {showErrorModal && (
         <StatusModal
+          open={showErrorModal}
+          onOpenChange={(open) => setShowErrorModal(open)}
           type="error"
           title="Error al actualizar la propiedad"
           message={errorMessage}

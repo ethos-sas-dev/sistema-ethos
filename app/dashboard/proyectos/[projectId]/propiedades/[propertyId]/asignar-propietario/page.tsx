@@ -1099,9 +1099,11 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
       {/* Modal de éxito */}
       {showSuccessModal && (
         <StatusModal
+          open={showSuccessModal}
           type="success"
           title="¡Propietario asignado exitosamente!"
           message="El propietario ha sido vinculado correctamente a la propiedad."
+          onOpenChange={(open) => setShowSuccessModal(open)}
           onClose={() => setShowSuccessModal(false)}
           actionLabel="Volver a la Propiedad"
           onAction={() => {
@@ -1114,9 +1116,11 @@ export default function AsignarPropietarioPage({ params }: PageProps) {
 
       {showErrorModal && (
         <StatusModal
+          open={showErrorModal}
           type="error"
           title="Error al crear el propietario"
           message={errorMessage}
+          onOpenChange={(open) => setShowErrorModal(open)}
           onClose={() => setShowErrorModal(false)}
           actionLabel="Intentar nuevamente"
           onAction={() => {

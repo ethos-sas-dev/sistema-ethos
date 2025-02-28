@@ -1356,9 +1356,11 @@ export default function NuevaPropiedadPage() {
 
       {showSuccessModal && (
         <StatusModal
+          open={showSuccessModal}
           type="success"
           title="¡Propiedad creada exitosamente!"
           message="La propiedad ha sido creada correctamente."
+          onOpenChange={(open) => setShowSuccessModal(open)}
           onClose={() => setShowSuccessModal(false)}
           actionLabel="Ver Propiedad"
           onAction={() => {
@@ -1371,9 +1373,11 @@ export default function NuevaPropiedadPage() {
 
       {showErrorModal && (
         <StatusModal
+          open={showErrorModal}
           type="error"
           title="Error al crear la propiedad"
           message={errorMessage}
+          onOpenChange={(open) => setShowErrorModal(open)}
           onClose={() => setShowErrorModal(false)}
           actionLabel="Intentar nuevamente"
           onAction={() => {

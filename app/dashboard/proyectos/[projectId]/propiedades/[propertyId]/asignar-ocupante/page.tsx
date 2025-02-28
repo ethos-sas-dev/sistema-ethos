@@ -342,7 +342,7 @@ export default function AsignarOcupantePage() {
           ocupanteData.datosPersonaJuridica = {
             razonSocial,
             nombreComercial,
-            rucs: rucsPersonaJuridica.map(rucItem => ({
+            rucPersonaJuridica: rucsPersonaJuridica.map(rucItem => ({
               ruc: rucItem.ruc,
               rucPdf: rucItem.rucPdf?.documentId
             })),
@@ -354,17 +354,17 @@ export default function AsignarOcupantePage() {
               nombreComercial: empresaRepresentanteLegal.nombreComercial,
               direccionLegal: empresaRepresentanteLegal.direccionLegal,
               observaciones: empresaRepresentanteLegal.observaciones,
-              nombreRepresentanteLegal: empresaRepresentanteLegal.nombreRepresentanteLegalRL,
+              razonSocialRepresentanteLegalRL: empresaRepresentanteLegal.nombreRepresentanteLegalRL,
               cedulaRepresentanteLegal: empresaRepresentanteLegal.cedulaRepresentanteLegal,
               autorizacionRepresentacionPdf: documentos.autorizacionRepresentacionPdf?.documentId,
               cedulaRepresentanteLegalPdf: documentos.cedulaRepresentanteLegalEmpresaPdf?.documentId,
-              rucs: rucsEmpresaRepresentante.map(rucItem => ({
+              rucEmpresaRepresentanteLegal: rucsEmpresaRepresentante.map(rucItem => ({
                 ruc: rucItem.ruc,
                 rucPdf: rucItem.rucPdf?.documentId
               }))
             };
           } else {
-            ocupanteData.datosPersonaJuridica.nombreRepresentanteLegal = nombreRepresentante;
+            ocupanteData.datosPersonaJuridica.razonSocialRepresentanteLegal = nombreRepresentante;
             ocupanteData.datosPersonaJuridica.cedulaRepresentanteLegal = cedulaRepresentante;
             ocupanteData.datosPersonaJuridica.cedulaRepresentanteLegalPdf = documentos.cedulaRepresentanteLegalPdf?.documentId;
             ocupanteData.datosPersonaJuridica.nombramientoRepresentanteLegalPdf = documentos.nombramientoRepresentanteLegalPdf?.documentId;
@@ -412,7 +412,7 @@ export default function AsignarOcupantePage() {
           perfilClienteData.datosPersonaJuridica = {
             razonSocial,
             nombreComercial,
-            rucs: rucsPersonaJuridica.map(rucItem => ({
+            rucPersonaJuridica: rucsPersonaJuridica.map(rucItem => ({
               ruc: rucItem.ruc,
               rucPdf: rucItem.rucPdf?.documentId
             })),
@@ -424,17 +424,17 @@ export default function AsignarOcupantePage() {
               nombreComercial: empresaRepresentanteLegal.nombreComercial,
               direccionLegal: empresaRepresentanteLegal.direccionLegal,
               observaciones: empresaRepresentanteLegal.observaciones,
-              nombreRepresentanteLegal: empresaRepresentanteLegal.nombreRepresentanteLegalRL,
+              razonSocialRepresentanteLegalRL: empresaRepresentanteLegal.nombreRepresentanteLegalRL,
               cedulaRepresentanteLegal: empresaRepresentanteLegal.cedulaRepresentanteLegal,
               autorizacionRepresentacionPdf: documentos.autorizacionRepresentacionPdf?.documentId,
               cedulaRepresentanteLegalPdf: documentos.cedulaRepresentanteLegalEmpresaPdf?.documentId,
-              rucs: rucsEmpresaRepresentante.map(rucItem => ({
+              rucEmpresaRepresentanteLegal: rucsEmpresaRepresentante.map(rucItem => ({
                 ruc: rucItem.ruc,
                 rucPdf: rucItem.rucPdf?.documentId
               }))
             };
           } else {
-            perfilClienteData.datosPersonaJuridica.nombreRepresentanteLegal = nombreRepresentante;
+            perfilClienteData.datosPersonaJuridica.razonSocialRepresentanteLegal = nombreRepresentante;
             perfilClienteData.datosPersonaJuridica.cedulaRepresentanteLegal = cedulaRepresentante;
             perfilClienteData.datosPersonaJuridica.cedulaRepresentanteLegalPdf = documentos.cedulaRepresentanteLegalPdf?.documentId;
             perfilClienteData.datosPersonaJuridica.nombramientoRepresentanteLegalPdf = documentos.nombramientoRepresentanteLegalPdf?.documentId;
@@ -1251,6 +1251,7 @@ export default function AsignarOcupantePage() {
       {/* Modal de confirmación de eliminación */}
       {showConfirmDelete && (
         <StatusModal
+          open={showConfirmDelete}
           type="error"
           title="¿Eliminar ocupante?"
           message="¿Estás seguro de que deseas eliminar este ocupante? Esta acción no se puede deshacer."
@@ -1258,6 +1259,7 @@ export default function AsignarOcupantePage() {
             setShowConfirmDelete(false);
             setOcupanteAEliminar(null);
           }}
+          onOpenChange={(open) => setShowConfirmDelete(open)}
           actionLabel={isLoading ? "Eliminando..." : "Eliminar"}
           onAction={handleDeleteOcupante}
         />
@@ -1266,6 +1268,7 @@ export default function AsignarOcupantePage() {
       {/* Modal de éxito */}
       {showSuccessModal && (
         <StatusModal
+          open={showSuccessModal}
           type="success"
           title="¡Operación exitosa!"
           message={ocupanteAEliminar 
@@ -1275,6 +1278,7 @@ export default function AsignarOcupantePage() {
             setShowSuccessModal(false);
             router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
           }}
+          onOpenChange={(open) => setShowSuccessModal(open)}
           actionLabel="Ver Propiedad"
           onAction={() => {
             router.push(`/dashboard/proyectos/${projectId}/propiedades/${propertyId}`);
@@ -1285,6 +1289,7 @@ export default function AsignarOcupantePage() {
       {/* Modal de error */}
       {showErrorModal && (
         <StatusModal
+          open={showErrorModal}
           type="error"
           title="Error"
           message={errorMessage}
@@ -1298,6 +1303,7 @@ export default function AsignarOcupantePage() {
               methods.handleSubmit(onSubmit)();
             }
           }}
+          onOpenChange={(open) => setShowErrorModal(open)}
         />
       )}
     </motion.div>
