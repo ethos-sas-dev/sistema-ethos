@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { emailCache } from '../../../lib/cache';
 
-// Función auxiliar para manejar la lógica de limpieza de caché
-async function handleCacheFlush(request: Request) {
+export async function GET(request: Request) {
   try {
-    const url = new URL(request.url);
-    const specificKey = url.searchParams.get('key');
+    const { searchParams } = new URL(request.url);
+    const specificKey = searchParams.get('key');
 
     if (specificKey) {
       // Si se proporciona una clave específica, solo borrar esa clave
@@ -39,14 +38,4 @@ async function handleCacheFlush(request: Request) {
       error: String(error) 
     }, { status: 500 });
   }
-}
-
-// Soportar método GET
-export async function GET(request: Request) {
-  return handleCacheFlush(request);
-}
-
-// Soportar método POST
-export async function POST(request: Request) {
-  return handleCacheFlush(request);
 } 

@@ -39,20 +39,14 @@ export async function GET(request: Request) {
         query {
           emailTrackings(
             filters: {
-              or: [
-                { attachments: { size: { eq: 0 } } },
-                { attachments: { url: { eq: "" } } },
-                { attachments: { null: true } }
-              ]
+              attachments: { size: { eq: 0 } }
             },
-            pagination: { limit: 15 },
-            sort: ["createdAt:desc"]
+            pagination: { limit: 10 }
           ) {
             data {
               id
               attributes {
                 emailId
-                createdAt
               }
             }
           }
@@ -75,12 +69,9 @@ export async function GET(request: Request) {
       
       // Procesar cada correo encontrado
       const results = [];
-      const processedCount = { success: 0, failed: 0 };
       
       for (const email of emails) {
         try {
-          console.log(`Procesando adjuntos para correo: ${email.attributes.emailId} (creado: ${email.attributes.createdAt})`);
-          
           // Llamar al endpoint de procesamiento de adjuntos
           const processResult = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/emails/process-attachments`, {
             method: 'POST',
@@ -93,20 +84,11 @@ export async function GET(request: Request) {
           });
           
           const result = await processResult.json();
-          const success = processResult.ok && result.attachments?.some((att: { url: string }) => att.url && att.url.startsWith('http'));
-          
-          if (success) {
-            processedCount.success++;
-          } else {
-            processedCount.failed++;
-          }
-          
           results.push({
             emailId: email.attributes.emailId,
-            success,
+            success: processResult.ok,
             message: result.message || result.error,
-            attachmentsCount: result.attachments?.length || 0,
-            validAttachments: result.attachments?.filter((att: { url: string }) => att.url && att.url.startsWith('http')).length || 0
+            attachmentsCount: result.attachments?.length || 0
           });
           
           // Esperar un poco entre cada procesamiento para no sobrecargar el servidor
@@ -127,8 +109,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         success: true,
         message: `Procesados adjuntos para ${results.length} correos`,
-        results,
-        processedCount
+        results
       });
     } catch (error: any) {
       console.error('Error en el procesamiento de adjuntos:', error);

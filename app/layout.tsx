@@ -5,7 +5,6 @@ import { RootProviders } from './_providers/root-providers'
 import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "./api/uploadthing/core";
-import { ReactNode } from 'react';
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -18,7 +17,7 @@ export { metadata }
 export default function RootLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="es" className={dmSans.variable}>
